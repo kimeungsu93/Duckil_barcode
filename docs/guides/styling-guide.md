@@ -144,8 +144,8 @@ export function CustomButton({ className, ...props }) {
   return (
     <Button
       className={cn(
-        "transition-all duration-200",
-        "hover:shadow-lg hover:-translate-y-0.5",
+        'transition-all duration-200',
+        'hover:-translate-y-0.5 hover:shadow-lg',
         className
       )}
       {...props}
@@ -157,7 +157,7 @@ export function CustomButton({ className, ...props }) {
 export function MyButton({ className, ...props }) {
   return (
     <button
-      className="px-4 py-2 bg-blue-500..." // 긴 클래스 나열
+      className="bg-blue-500... px-4 py-2" // 긴 클래스 나열
       {...props}
     />
   )
@@ -175,6 +175,8 @@ npx shadcn@latest add dialog
 # 모든 컴포넌트 확인
 npx shadcn@latest add
 ```
+
+> ⚠️ 2026-09 기준 shadcn 레지스트리는 `cn`을 npm 패키지 `cn`에서, Radix를 통합 패키지 `radix-ui`에서 import하는 코드를 내려준다. 추가 후 반드시 import를 `import { cn } from '@/lib/utils'`, `import * as XxxPrimitive from '@radix-ui/react-xxx'`로 고치고, `package.json`에 `cn`·`radix-ui`가 추가되었으면 `npm uninstall cn radix-ui`로 제거한다. 파일이 이미 있으면 덮어쓰기 질문에 `n`으로 답한다(`button.tsx`의 `touch` 변형 보존).
 
 ## 🌓 다크모드 구현
 
@@ -215,8 +217,8 @@ export function ThemeToggle() {
       size="icon"
       onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
     >
-      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <Sun className="h-4 w-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+      <Moon className="absolute h-4 w-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
       <span className="sr-only">테마 전환</span>
     </Button>
   )
@@ -315,6 +317,21 @@ import 'tw-animate-css'
 ```
 
 ## 📱 반응형 디자인 패턴
+
+### 모바일 우선 규칙 (Duckil Barcode)
+
+- 화면은 휴대폰 세로 기준 단일 컬럼입니다. 본문은 `<Container size="mobile">`(최대 480px, 좌우 16px)로 감쌉니다.
+- 터치 영역은 최소 48px입니다(PRD §8). 주요 버튼은 `size="touch"`(높이 48px), 아이콘 버튼은 `size="icon-touch"`(48x48px)를 씁니다. 입력 필드는 `className="h-12"`로 높이를 맞춥니다.
+- 하단 탭 바 높이는 `--tab-bar-h` 토큰(`globals.css`)으로 관리합니다. 하단 고정 요소는 `bottom-[calc(var(--tab-bar-h)+env(safe-area-inset-bottom))]`로 탭 바 위에 둡니다. iOS 안전 영역은 `env(safe-area-inset-*)`로 처리합니다(`viewport-fit=cover`).
+- 날짜 입력은 휴대폰 기본 달력이 뜨는 `<Input type="date" className="h-12" />`를 사용합니다. shadcn `calendar`는 추가하지 않습니다.
+
+```tsx
+<Button size="touch" className="w-full">
+  <ScanLine />
+  스캔 시작
+</Button>
+<Input type="date" className="h-12" value={from} onChange={...} />
+```
 
 ### 컨테이너 패턴
 
@@ -438,27 +455,32 @@ import { cn } from '@/lib/utils'
 새 컴포넌트 작성 시 확인사항:
 
 ### 기본 사항
+
 - [ ] TailwindCSS 유틸리티 클래스 우선 사용
 - [ ] cn() 함수로 클래스 조합
 - [ ] 시맨틱 색상 변수 사용
 - [ ] 반응형 디자인 적용
 
 ### 다크모드
+
 - [ ] 다크모드 대응 색상 사용
 - [ ] 하드코딩된 색상 없음
 - [ ] 테마 전환 시 깨짐 없음
 
 ### 성능
+
 - [ ] 불필요한 애니메이션 없음
 - [ ] will-change 적절히 사용
 - [ ] 인라인 스타일 없음
 
 ### 접근성
+
 - [ ] 충분한 색상 대비
 - [ ] 포커스 상태 스타일링
 - [ ] 스크린 리더 고려
 
 ### 유지보수
+
 - [ ] 일관된 클래스 순서
 - [ ] 재사용 가능한 컴포넌트 활용
 - [ ] 의미있는 클래스 조합
