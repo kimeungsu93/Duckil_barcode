@@ -25,6 +25,9 @@ const buttonVariants = cva(
         sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
         lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
+        // 모바일 터치 기준(높이 48px 이상, PRD §8)
+        touch: 'h-12 rounded-md px-6 text-base has-[>svg]:px-4',
+        'icon-touch': 'size-12',
       },
     },
     defaultVariants: {

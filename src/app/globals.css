@@ -45,6 +45,8 @@
 
 :root {
   --radius: 0.625rem;
+  /* 하단 탭 바 높이 (안전 영역 제외). 하단 고정 요소가 이 값을 기준으로 위치를 잡는다 */
+  --tab-bar-h: 4rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
