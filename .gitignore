@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Playwright MCP 산출물
+/.playwright-mcp/
+
+# 런타임 데이터 (DB·사진)
+/data/
+
+# dev:https 자체 서명 인증서 (next dev --experimental-https)
+/certificates/
