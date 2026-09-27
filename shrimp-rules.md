@@ -6,7 +6,7 @@
 
 - **Duckil Barcode**: 휴대폰 브라우저로 제품 QR을 스캔해 Product No/Lot을 추출하고, 사진 2장(바코드·제품)과 함께 저장한 뒤 사진이 들어간 Excel로 내보내는 사내 웹앱 MVP
 - 스택: Next.js 15.5.3 App Router(Turbopack), React 19.1, TypeScript 5(strict), TailwindCSS v4, shadcn/ui(new-york, neutral, lucide), React Hook Form, Zod 4, sonner, `better-sqlite3`, `@zxing/browser`, `exceljs`, Node.js 24.16
-- **현재 상태**: Phase 1 완료(2026-09-28). 스타터 예제 코드는 제거됨. 4개 라우트는 "준비 중" 자리표시이고, 공통 타입·Zod 스키마·상수·KST 유틸·에러 헬퍼·더미 데이터(`src/lib/`)가 준비됨. 다음 작업은 Phase 2 Task 004
+- **현재 상태**: Phase 2 완료(2026-09-28). 4개 화면(홈·스캔·상세·내보내기)이 더미 데이터로 동작하고, 화면 상태는 개발 모드 `?preview=`로 확인한다. Task 008-1 UX 검토 결과(Q11~Q13)가 PRD/ROADMAP에 반영됨. 다음 작업은 Phase 3 Task 009
 - 로그인·권한·오프라인 동기화·3장 이상 사진·마스터 연동은 **범위 외**. 구현하지 않는다
 
 ## 2. 기준 문서와 우선순위
