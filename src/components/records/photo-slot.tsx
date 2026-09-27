@@ -13,7 +13,8 @@ interface PhotoSlotProps {
   state: PhotoSlotState
   // 촬영(재촬영) 요청. Phase 2는 더미, Task 015에서 파일 입력·리사이즈로 교체
   onCapture: () => void
-  onClear: () => void
+  // 지정하지 않으면 비우기 버튼을 숨긴다 (상세 화면은 사진 삭제 미지원, ROADMAP Q11)
+  onClear?: () => void
   disabled?: boolean
 }
 
@@ -58,7 +59,7 @@ export function PhotoSlot({
         )}
       </div>
       {state.status === 'preview' ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className={cn('grid gap-2', onClear && 'grid-cols-2')}>
           <Button
             type="button"
             variant="outline"
@@ -69,16 +70,18 @@ export function PhotoSlot({
             <RotateCw />
             재촬영
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="touch"
-            onClick={onClear}
-            disabled={disabled}
-          >
-            <X />
-            비우기
-          </Button>
+          {onClear && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="touch"
+              onClick={onClear}
+              disabled={disabled}
+            >
+              <X />
+              비우기
+            </Button>
+          )}
         </div>
       ) : (
         <Button

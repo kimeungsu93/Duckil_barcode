@@ -1,12 +1,15 @@
 'use client'
 
 import { useReducer, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ConfirmStep } from './confirm-step'
 import { DoneStep } from './done-step'
 import { PhotoStep } from './photo-step'
 import { ScannerStep } from './scanner-step'
 import { ConfirmDialog } from '@/components/dialogs/confirm-dialog'
+import { AppHeader } from '@/components/layout/app-header'
+import { Container } from '@/components/layout/container'
 import type { PhotoSlotState } from '@/components/records/photo-slot'
 import { MOCK_RECORDS, type MockPhotoKind } from '@/lib/mock/records'
 
@@ -263,6 +266,17 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
   const [state, dispatch] = useReducer(reducer, preview, initState)
   const [save] = useState(() => onSave ?? createDummySave(preview))
   const [noPhotoConfirmOpen, setNoPhotoConfirmOpen] = useState(false)
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+  const router = useRouter()
+
+  // 정보 확인·사진 단계에서 나가면 입력값이 사라지므로 한 번 확인한다
+  function handleLeave() {
+    if (state.step === 'confirm' || state.step === 'photos') {
+      setLeaveConfirmOpen(true)
+      return
+    }
+    router.push('/')
+  }
 
   async function runSave() {
     dispatch({ type: 'SAVE_START' })
@@ -308,81 +322,109 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
   const stepInfo = STEP_LABELS[state.step]
 
   return (
-    <div className="flex flex-col gap-4">
-      {stepInfo && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold">{stepInfo.label}</p>
-          <p
-            className="text-muted-foreground text-sm"
-            aria-label={`${STEP_TOTAL}단계 중 ${stepInfo.index}단계`}
-          >
-            {stepInfo.index}/{STEP_TOTAL}
-          </p>
-        </div>
-      )}
+    <>
+      <AppHeader title="스캔" onBack={handleLeave} />
+      <main className="flex-1">
+        <Container
+          size="mobile"
+          className="py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+        >
+          <div className="flex flex-col gap-4">
+            {stepInfo && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">{stepInfo.label}</p>
+                <p
+                  className="text-muted-foreground text-sm"
+                  aria-label={`${STEP_TOTAL}단계 중 ${stepInfo.index}단계`}
+                >
+                  {stepInfo.index}/{STEP_TOTAL}
+                </p>
+              </div>
+            )}
 
-      {state.step === 'scanner' && (
-        <ScannerStep
-          camera={state.camera}
-          onDetected={detection => dispatch({ type: 'DETECTED', detection })}
-          onManualInput={() => dispatch({ type: 'MANUAL' })}
-          dummyDetection={
-            process.env.NODE_ENV === 'production' ? undefined : DUMMY_DETECTION
-          }
-        />
-      )}
+            {state.step === 'scanner' && (
+              <ScannerStep
+                camera={state.camera}
+                onDetected={detection =>
+                  dispatch({ type: 'DETECTED', detection })
+                }
+                onManualInput={() => dispatch({ type: 'MANUAL' })}
+                dummyDetection={
+                  process.env.NODE_ENV === 'production'
+                    ? undefined
+                    : DUMMY_DETECTION
+                }
+              />
+            )}
 
-      {state.step === 'confirm' && (
-        <ConfirmStep
-          mode={state.mode}
-          camera={state.camera}
-          rawText={state.rawText}
-          parseFailed={state.parseFailed}
-          defaultValues={state.fields}
-          onConfirm={fields => dispatch({ type: 'CONFIRM', fields })}
-          onBack={
-            state.camera === 'unsupported'
-              ? undefined
-              : () => dispatch({ type: 'BACK' })
-          }
-        />
-      )}
+            {state.step === 'confirm' && (
+              <ConfirmStep
+                mode={state.mode}
+                camera={state.camera}
+                rawText={state.rawText}
+                parseFailed={state.parseFailed}
+                defaultValues={state.fields}
+                onConfirm={fields => dispatch({ type: 'CONFIRM', fields })}
+                onBack={
+                  state.camera === 'unsupported'
+                    ? undefined
+                    : () => dispatch({ type: 'BACK' })
+                }
+              />
+            )}
 
-      {state.step === 'photos' && (
-        <PhotoStep
-          photos={state.photos}
-          saving={state.saving}
-          onCapture={kind =>
-            dispatch({
-              type: 'SET_PHOTO',
-              kind,
-              state: { status: 'preview', url: DUMMY_PHOTO_URL[kind] },
-            })
-          }
-          onClear={kind =>
-            dispatch({ type: 'SET_PHOTO', kind, state: { status: 'empty' } })
-          }
-          onSave={handleSave}
-          onBack={() => dispatch({ type: 'BACK' })}
-        />
-      )}
+            {state.step === 'photos' && (
+              <PhotoStep
+                photos={state.photos}
+                saving={state.saving}
+                onCapture={kind =>
+                  dispatch({
+                    type: 'SET_PHOTO',
+                    kind,
+                    state: { status: 'preview', url: DUMMY_PHOTO_URL[kind] },
+                  })
+                }
+                onClear={kind =>
+                  dispatch({
+                    type: 'SET_PHOTO',
+                    kind,
+                    state: { status: 'empty' },
+                  })
+                }
+                onSave={handleSave}
+                onBack={() => dispatch({ type: 'BACK' })}
+              />
+            )}
 
-      {state.step === 'done' && state.result && (
-        <DoneStep
-          fields={state.result.fields}
-          photoCount={state.result.photoCount}
-          onNext={() => dispatch({ type: 'RESET' })}
-        />
-      )}
+            {state.step === 'done' && state.result && (
+              <DoneStep
+                fields={state.result.fields}
+                photoCount={state.result.photoCount}
+                onNext={() => dispatch({ type: 'RESET' })}
+              />
+            )}
 
-      <ConfirmDialog
-        open={noPhotoConfirmOpen}
-        onOpenChange={setNoPhotoConfirmOpen}
-        title="사진 없이 저장하시겠습니까?"
-        description="비어 있는 사진은 나중에 상세 화면에서 추가할 수 있습니다"
-        confirmLabel="저장"
-        onConfirm={() => void runSave()}
-      />
-    </div>
+            <ConfirmDialog
+              open={noPhotoConfirmOpen}
+              onOpenChange={setNoPhotoConfirmOpen}
+              title="사진 없이 저장하시겠습니까?"
+              description="비어 있는 사진은 나중에 상세 화면에서 추가할 수 있습니다"
+              confirmLabel="저장"
+              onConfirm={() => void runSave()}
+            />
+            <ConfirmDialog
+              open={leaveConfirmOpen}
+              onOpenChange={setLeaveConfirmOpen}
+              title="스캔을 그만두시겠습니까?"
+              description="입력한 내용과 사진은 저장되지 않습니다"
+              confirmLabel="그만두기"
+              cancelLabel="계속 입력"
+              destructive
+              onConfirm={() => router.push('/')}
+            />
+          </div>
+        </Container>
+      </main>
+    </>
   )
 }

@@ -25,8 +25,9 @@ export type DetailPreview = 'loading' | 'save-error'
 
 export interface DetailSaveInput {
   fields: UpdateOutput
-  // 재촬영으로 바뀐 사진만 담는다. null이면 삭제. Task 018에서 Blob으로 교체 (ROADMAP Q5)
-  photos: Partial<Record<PhotoKind, string | null>>
+  // 재촬영으로 바뀐 사진만 담는다. 사진 삭제는 지원하지 않는다 (ROADMAP Q5·Q11)
+  // Task 018에서 리사이즈된 Blob으로 교체
+  photos: Partial<Record<PhotoKind, string>>
 }
 
 interface RecordDetailViewProps {
@@ -70,7 +71,8 @@ export function RecordDetailView({
   onDelete,
 }: RecordDetailViewProps) {
   const router = useRouter()
-  const [savedPhotos, setSavedPhotos] = useState(photoUrls)
+  // 재촬영한 슬롯. URL이 같아도(더미) 재촬영하면 교체 대상으로 본다
+  const [replaced, setReplaced] = useState<PhotoKind[]>([])
   const [photos, setPhotos] = useState<Record<PhotoKind, PhotoSlotState>>({
     barcode: toSlotState(photoUrls.barcode),
     product: toSlotState(photoUrls.product),
@@ -88,11 +90,7 @@ export function RecordDetailView({
     },
   })
 
-  // 재촬영(교체)·비우기로 저장된 사진과 달라진 슬롯
-  const changedPhotos = SLOTS.filter(
-    ({ kind }) => slotUrl(photos[kind]) !== savedPhotos[kind]
-  ).map(({ kind }) => kind)
-  const dirty = form.formState.isDirty || changedPhotos.length > 0
+  const dirty = form.formState.isDirty || replaced.length > 0
 
   async function save(input: DetailSaveInput) {
     if (onSave) return onSave(input)
@@ -106,14 +104,14 @@ export function RecordDetailView({
       await save({
         fields: values,
         photos: Object.fromEntries(
-          changedPhotos.map(kind => [kind, slotUrl(photos[kind])])
+          replaced.flatMap(kind => {
+            const url = slotUrl(photos[kind])
+            return url ? [[kind, url]] : []
+          })
         ),
       })
       form.reset(values)
-      setSavedPhotos({
-        barcode: slotUrl(photos.barcode),
-        product: slotUrl(photos.product),
-      })
+      setReplaced([])
       setUpdatedAt(nowKstIso())
       toast.success('저장되었습니다')
     } catch {
@@ -166,15 +164,15 @@ export function RecordDetailView({
             label={label}
             state={photos[kind]}
             // 더미 재촬영: 같은 샘플 이미지로 교체 (Task 015에서 촬영·리사이즈 연결)
-            onCapture={() =>
+            onCapture={() => {
               setPhotos(prev => ({
                 ...prev,
                 [kind]: { status: 'preview', url: DUMMY_PHOTO_URL[kind] },
               }))
-            }
-            onClear={() =>
-              setPhotos(prev => ({ ...prev, [kind]: { status: 'empty' } }))
-            }
+              setReplaced(prev =>
+                prev.includes(kind) ? prev : [...prev, kind]
+              )
+            }}
             disabled={busy}
           />
         ))}
