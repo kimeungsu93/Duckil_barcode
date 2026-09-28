@@ -158,7 +158,7 @@ src/lib/
 ### 기타 폴더
 
 ```
-public/mock/           # 🖼️ 더미 샘플 이미지 (barcode-sample.jpg, product-sample.jpg)
+public/mock/           # 🖼️ 더미 샘플 이미지 (barcode-sample.jpg 800x267 3:1, product-sample.jpg 800x160 5:1, 가로형)
 scripts/               # 🔍 Node 24 타입 스트리핑 검증 스크립트
 ├── register-alias.mjs # '@/' 별칭 resolve 훅
 ├── check-schemas.ts   # 스키마 경계값 검사
