@@ -41,10 +41,10 @@ Phase 1 기반 정리 ──▶ Phase 2 웹 화면 UI (더미 데이터) ──�
 | 2     | 008   | 내보내기 화면 UI 구현 (더미 데이터)                             | 004                | [x]                    |
 | 2     | 008-1 | UX 검토 및 보완 사항 정리 (API 착수 전 PRD/ROADMAP 반영)        | 005, 006, 007, 008 | [x]                    |
 | 2     | 008-2 | 참고 자료 반영 화면·더미 데이터 보완                            | 008-1              | [x]                    |
-| 3     | 009   | SQLite 초기화 모듈 및 기록 리포지토리 구현                      | 003, 008-1, 008-2  | [ ]                    |
-| 3     | 010   | 사진 저장소 유틸 및 `GET /api/photos/[file]` 구현               | 003, 008-1, 008-2  | [ ]                    |
-| 3     | 011   | 기록 CRUD API 구현                                              | 009, 010, 008-2    | [ ]                    |
-| 3     | 012   | Excel 내보내기 API 구현                                         | 009, 010, 008-2    | [ ]                    |
+| 3     | 009   | SQLite 초기화 모듈 및 기록 리포지토리 구현                      | 003, 008-1, 008-2  | [x]                    |
+| 3     | 010   | 사진 저장소 유틸 및 `GET /api/photos/[file]` 구현               | 003, 008-1, 008-2  | [x]                    |
+| 3     | 011   | 기록 CRUD API 구현                                              | 009, 010, 008-2    | [x]                    |
+| 3     | 012   | Excel 내보내기 API 구현                                         | 009, 010, 008-2    | [x]                    |
 | 4     | 013   | QR 파서 모듈 구현 (교체 가능 구조 + 기본 규칙)                  | 003                | [ ]                    |
 | 4     | 014   | QR 스캐너 카메라 로직 구현 (권한·미지원 처리)                   | 006                | [ ]                    |
 | 4     | 015   | 사진 리사이즈 로직 구현 및 사진 슬롯 연결                       | 006                | [ ]                    |
@@ -61,7 +61,7 @@ Phase 1 기반 정리 ──▶ Phase 2 웹 화면 UI (더미 데이터) ──�
 
 - [x] Phase 1: 기반 정리 및 앱 골격 구축
 - [x] Phase 2: 웹 화면 UI 구현 - 더미 데이터 (API 호출 없음) - 완료
-- [ ] Phase 3: 데이터 계층 및 API 구축 (Task 008-1 UX 검토·Task 008-2 참고 자료 반영 완료, 시작 가능)
+- [x] Phase 3: 데이터 계층 및 API 구축 - 완료
 - [ ] Phase 4: 스캔·촬영·저장 기능 연결
 - [ ] Phase 5: 목록·상세·내보내기 기능 연결
 - [ ] Phase 6: 현장 적용
@@ -359,101 +359,104 @@ PRD §10의 나머지 항목(서버 OS/Node 설치 가능 여부·HTTPS 인증�
 
 화면 없이도 API만으로 기록을 만들고 조회·수정·삭제·내보내기할 수 있는 상태를 만듭니다. Phase 2의 화면 코드에는 의존하지 않지만, Task 008-1에서 정리한 보완 사항(API 명세·데이터 모델·Zod 스키마·Q1~Q10 변경점)이 PRD/ROADMAP에 반영되고 Task 008-2(참고 자료 반영, Q14~Q16)가 끝난 뒤 시작합니다. 아래 Task의 명세는 현재 PRD 기준입니다.
 
-- **Task 009: SQLite 초기화 모듈 및 기록 리포지토리 구현**
+- **Task 009: SQLite 초기화 모듈 및 기록 리포지토리 구현** ✅ - 완료
+  - See: `/tasks/009-db-repository.md`
   - 의존: Task 003, 008-1, 008-2
-  - 담당 파일: `src/lib/db.ts`, `src/lib/records-repo.ts` (둘 다 첫 줄에 `import 'server-only'`)
+  - 담당 파일: `src/lib/db.ts`, `src/lib/records-repo.ts` (둘 다 첫 줄에 `import 'server-only'`), `scripts/check-repo.ts`
   - 구현 사항
-    - [ ] `getDb()`: 처음 호출할 때 `DATA_DIR`와 `uploads/`를 `mkdirSync({ recursive: true })`로 만들고 `data/app.db`를 연다. import 시점에 DB를 열지 않아 `next build`가 DB 파일을 만들지 않게 함
-    - [ ] 개발 모드 HMR에서 연결이 여러 개 생기지 않도록 `globalThis`에 싱글턴으로 보관
-    - [ ] `PRAGMA journal_mode = WAL` 설정
-    - [ ] PRD §6 스키마(`records` 테이블, `idx_records_created`, `idx_records_product_lot`)를 `CREATE ... IF NOT EXISTS`로 생성하고, 이후 컬럼 추가에 대비해 `PRAGMA user_version`으로 스키마 버전 관리
-    - [ ] 리포지토리 함수: `insertRecord`, `findRecordById`, `listRecords({ q, limit, offset, from, to })`(최신순 `created_at DESC, id DESC`, `total` 함께 반환), `updateRecord`, `deleteRecord`, `existsByProductLot`(Q9), `listRecordsForExport(from, to)`(스캔 순서 `created_at ASC, id ASC`, Q16), `countRecordsInRange(from, to)`
-    - [ ] 검색은 `product_no`/`lot` 부분 일치, 대소문자 무시(`LIKE ... ESCAPE '\'`, 입력의 `%`, `_`, `\` 이스케이프) (F4-3)
-    - [ ] `created_at`/`updated_at`은 항상 `nowKstIso()` 값을 명시적으로 넣고, SQLite `datetime('now','localtime')`은 쓰지 않음 (PRD §6, §8, Q2)
-    - [ ] 모든 쿼리는 prepared statement와 바인딩 파라미터 사용
+    - [x] `getDb()`: 처음 호출할 때 `DATA_DIR`와 `uploads/`를 `mkdirSync({ recursive: true })`로 만들고 `data/app.db`를 연다. import 시점에 DB를 열지 않아 `next build`가 DB 파일을 만들지 않게 함
+    - [x] 개발 모드 HMR에서 연결이 여러 개 생기지 않도록 `globalThis`에 싱글턴으로 보관
+    - [x] `PRAGMA journal_mode = WAL` 설정
+    - [x] PRD §6 스키마(`records` 테이블, `idx_records_created`, `idx_records_product_lot`)를 `CREATE ... IF NOT EXISTS`로 생성하고, 이후 컬럼 추가에 대비해 `PRAGMA user_version`으로 스키마 버전 관리
+    - [x] 리포지토리 함수: `insertRecord`, `findRecordById`, `listRecords({ q, limit, offset, from, to })`(최신순 `created_at DESC, id DESC`, `total` 함께 반환), `updateRecord`, `deleteRecord`, `existsByProductLot`(Q9), `listRecordsForExport(from, to)`(스캔 순서 `created_at ASC, id ASC`, Q16), `countRecordsInRange(from, to)`
+    - [x] 검색은 `product_no`/`lot` 부분 일치, 대소문자 무시(`LIKE ... ESCAPE '\'`, 입력의 `%`, `_`, `\` 이스케이프) (F4-3)
+    - [x] `created_at`/`updated_at`은 항상 `nowKstIso()` 값을 명시적으로 넣고, SQLite `datetime('now','localtime')`은 쓰지 않음 (PRD §6, §8, Q2)
+    - [x] 모든 쿼리는 prepared statement와 바인딩 파라미터 사용
   - 완료 조건
-    - [ ] 빈 `data/` 상태에서 첫 호출 시 DB 파일과 테이블·인덱스가 자동으로 생긴다
-    - [ ] `npm run build` 후 `data/app.db`가 생기지 않는다
-    - [ ] `listRecordsForExport`가 같은 시각 기록도 `id` 순으로 스캔 순서대로 반환한다 (Q16)
+    - [x] 빈 `data/` 상태에서 첫 호출 시 DB 파일과 테이블·인덱스가 자동으로 생긴다
+    - [x] `npm run build` 후 `data/app.db`가 생기지 않는다
+    - [x] `listRecordsForExport`가 같은 시각 기록도 `id` 순으로 스캔 순서대로 반환한다 (Q16)
+  - 테스트 체크리스트: `scripts/check-repo.ts`(스크래치 `DATA_DIR`) 49개 검증 모두 통과(생성·CRUD·검색 이스케이프·대소문자·중복 판정·동일 `created_at` 순서·KST 자정 경계·페이지네이션 일관성·`EXPLAIN QUERY PLAN` 5종). 화면 연결이 없어 Playwright 대상이 아니다
   - 확인 필요: Q2, Q9, Q16
 
-- **Task 010: 사진 저장소 유틸 및 `GET /api/photos/[file]` 구현**
+- **Task 010: 사진 저장소 유틸 및 `GET /api/photos/[file]` 구현** ✅ - 완료
+  - See: `/tasks/010-photo-storage.md`
   - 의존: Task 003, 008-1, 008-2
-  - 담당 파일: `src/lib/storage.ts`(`server-only`), `src/app/api/photos/[file]/route.ts`
+  - 담당 파일: `src/lib/storage.ts`(`server-only`), `src/app/api/photos/[file]/route.ts`, `scripts/check-storage.ts`
   - 구현 사항
-    - [ ] `savePhoto(file: File)`: 크기(5MB)·MIME(`image/jpeg`/`image/png`)·매직 바이트를 검사하고, `crypto.randomUUID()` + `.jpg` 파일명으로 `UPLOAD_DIR`에 저장한 뒤 파일명 반환 (Q8)
-    - [ ] `deletePhoto(name)`: 파일이 없으면(`ENOENT`) 예외 없이 경고 로그만 남김 (PRD §4 DELETE, §8)
-    - [ ] `resolvePhotoPath(name)`: 파일명 정규식 검사 → `path.join(UPLOAD_DIR, name)` → `path.resolve` 결과가 `UPLOAD_DIR` 하위인지 재확인 (PRD §8 경로 조작 방지)
-    - [ ] 크기·형식 오류는 `PhotoTooLargeError`, `UnsupportedMediaError` 전용 에러로 던져 API가 413/415로 바꿀 수 있게 함
-    - [ ] `GET /api/photos/[file]`: 정규식에 맞지 않으면 파일시스템 조회 없이 즉시 `400 INVALID_FILENAME`, 파일이 없으면 `404 NOT_FOUND`, 성공 시 `200` + `Content-Type`(기본 `image/jpeg`) + `Cache-Control: private, max-age=31536000, immutable`
+    - [x] `savePhoto(file: File)`: 크기(5MB)·MIME(`image/jpeg`/`image/png`)·매직 바이트를 검사하고, `crypto.randomUUID()` + `.jpg` 파일명으로 `UPLOAD_DIR`에 저장한 뒤 파일명 반환 (Q8)
+    - [x] `deletePhoto(name)`: 파일이 없으면(`ENOENT`) 예외 없이 경고 로그만 남김 (PRD §4 DELETE, §8)
+    - [x] `resolvePhotoPath(name)`: 파일명 정규식 검사 → `path.join(UPLOAD_DIR, name)` → `path.resolve` 결과가 `UPLOAD_DIR` 하위인지 재확인 (PRD §8 경로 조작 방지)
+    - [x] 크기·형식 오류는 `PhotoTooLargeError`, `UnsupportedMediaError` 전용 에러로 던져 API가 413/415로 바꿀 수 있게 함
+    - [x] `GET /api/photos/[file]`: 정규식에 맞지 않으면 파일시스템 조회 없이 즉시 `400 INVALID_FILENAME`, 파일이 없으면 `404 NOT_FOUND`, 성공 시 `200` + `Content-Type`(기본 `image/jpeg`) + `Cache-Control: private, max-age=31536000, immutable`
   - 완료 조건
-    - [ ] `../etc/passwd`, `%2e%2e%2f...`, `abc.png`, 대문자 uuid 등은 모두 400이고 파일시스템을 조회하지 않는다
-    - [ ] 존재하는 uuid.jpg는 이미지와 캐시 헤더를 반환한다
-  - 테스트 체크리스트 (Playwright MCP)
-    - [ ] `browser_navigate`로 잘못된 파일명 5종을 요청해 모두 400과 `INVALID_FILENAME` 코드 확인
-    - [ ] 형식은 맞지만 없는 파일 요청 시 404 확인
-    - [ ] 정상 파일 요청 시 `browser_network_request`로 `Content-Type`, `Cache-Control` 헤더 확인
+    - [x] `%2e%2e%2f...`(인코딩된 경로 조작), `abc.png`, 대문자 uuid 등은 모두 400이고 파일시스템을 조회하지 않는다. 리터럴 `../etc/passwd`는 아래 참고(주석)와 같이 Next.js가 라우팅 전에 URL을 정규화해 우리 라우트에 도달하지 않고 전역 404가 응답한다 — fs 접근은 없어 보안 문제 없음
+    - [x] 존재하는 uuid.jpg는 이미지와 캐시 헤더를 반환한다
+  - 테스트 체크리스트: `scripts/check-storage.ts`(스크래치 `DATA_DIR`) 15개 검증 통과 + curl로 잘못된 파일명 5종(400), 없는 파일(404), 정상 파일(200 + 헤더) 확인, Task 011-B에서 dev 서버로 재확인. 화면 미연결로 Playwright 대신 curl/스크립트로 검증
+    <!-- 리터럴 ../etc/passwd 확인 결과: curl 등 대부분의 HTTP 클라이언트가 URL의 '..' 세그먼트를 라우팅 전에 정규화(RFC 3986)해 /api/photos/../etc/passwd를 /api/etc/passwd로 바꾼다. 이 경로는 [file] 동적 세그먼트와 매칭되지 않아 Next.js 앱 전역 not-found.tsx(HTML 404)가 응답하고, INVALID_FILENAME 코드는 나오지 않는다. 파일시스템에는 접근하지 않으므로 보안 문제는 없다. -->
 
-- **Task 011: 기록 CRUD API 구현**
+- **Task 011: 기록 CRUD API 구현** ✅ - 완료 (011-A·011-B)
+  - See: `/tasks/011-records-api.md`
   - 의존: Task 009, 010, 008-2
-  - 담당 파일: `src/app/api/records/route.ts`(GET, POST), `src/app/api/records/[id]/route.ts`(GET, PATCH, DELETE), `src/lib/record-mapper.ts`(row → DTO), `src/lib/api/records-client.ts`(클라이언트용 fetch 래퍼)
+  - 담당 파일: `src/app/api/records/route.ts`(GET, POST), `src/app/api/records/[id]/route.ts`(GET, PATCH, DELETE), `src/lib/record-mapper.ts`(row → DTO), `src/lib/record-form.ts`(multipart 공통 헬퍼), `src/lib/api/records-client.ts`(클라이언트용 fetch 래퍼)
   - 구현 사항
-    - [ ] `POST /api/records`(multipart): `request.formData()` → Zod 검증 → 사진 저장 → DB INSERT. DB 실패 시 이미 저장한 사진 파일을 삭제(롤백)하고 `500 INTERNAL_ERROR`. INSERT 전에 `existsByProductLot`로 중복 여부를 확인하되 저장은 진행하고 `201` 응답에 `duplicate` 포함 (F4-1, Q4)
-    - [ ] 오류 매핑: 검증 실패 `400 VALIDATION_ERROR`(+`fields`), 5MB 초과 `413 PAYLOAD_TOO_LARGE`, 이미지 아님 `415 UNSUPPORTED_MEDIA_TYPE` (PRD §4)
-    - [ ] `GET /api/records`: `q`, `limit`(기본 20, 최대 100), `offset`, `from`/`to`(Q6) → `{ items, total }`
-    - [ ] `GET /api/records/[id]`: id 검증 실패 400, 없으면 `404 NOT_FOUND`
-    - [ ] `PATCH /api/records/[id]`(multipart, 부분 수정): 보낸 필드만 갱신하고 `updated_at` 갱신. 사진을 보내면 새 파일 저장 → DB 갱신 → 성공 후 기존 파일 삭제. DB 갱신 실패 시 새 파일만 지우고 기존 파일 보존 (F4-5, Q5)
-    - [ ] `PATCH`는 사진 삭제를 받지 않는다. 사진이 없는 기록에 사진을 보내면 새로 추가한다 (Q11)
-    - [ ] `DELETE /api/records/[id]`: DB row 삭제 후 사진 파일 2개 삭제, 파일이 없으면 로그만 남기고 `204` (F4-4)
-    - [ ] `records-client.ts`: `createRecord`, `listRecords`, `getRecord`, `updateRecord`, `deleteRecord`와, 에러 응답을 `ApiError`(status, code, fields)로 바꾸는 공통 처리
+    - [x] `POST /api/records`(multipart): `request.formData()` → Zod 검증 → 사진 저장 → DB INSERT. DB 실패 시 이미 저장한 사진 파일을 삭제(롤백)하고 `500 INTERNAL_ERROR`. INSERT 전에 `existsByProductLot`로 중복 여부를 확인하되 저장은 진행하고 `201` 응답에 `duplicate` 포함 (F4-1, Q4)
+    - [x] 오류 매핑: 검증 실패 `400 VALIDATION_ERROR`(+`fields`), 5MB 초과 `413 PAYLOAD_TOO_LARGE`, 이미지 아님 `415 UNSUPPORTED_MEDIA_TYPE` (PRD §4)
+    - [x] `GET /api/records`: `q`, `limit`(기본 20, 최대 100), `offset`, `from`/`to`(Q6) → `{ items, total }`
+    - [x] `GET /api/records/[id]`: id 검증 실패 400, 없으면 `404 NOT_FOUND`
+    - [x] `PATCH /api/records/[id]`(multipart, 부분 수정): 보낸 필드만 갱신하고 `updated_at` 갱신. 사진을 보내면 새 파일 저장 → DB 갱신 → 성공 후 기존 파일 삭제. DB 갱신 실패 시 새 파일만 지우고 기존 파일 보존 (F4-5, Q5)
+    - [x] `PATCH`는 사진 삭제를 받지 않는다. 사진이 없는 기록에 사진을 보내면 새로 추가한다 (Q11)
+    - [x] `DELETE /api/records/[id]`: DB row 삭제 후 사진 파일 2개 삭제, 파일이 없으면 로그만 남기고 `204` (F4-4)
+    - [x] `records-client.ts`: `createRecord`, `listRecords`, `getRecord`, `updateRecord`, `deleteRecord`와, 에러 응답을 `ApiError`(status, code, fields)로 바꾸는 공통 처리
   - 완료 조건
-    - [ ] 같은 Product No+Lot으로 두 번 저장하면 두 번째 응답이 `201`이고 `duplicate: true`다 (F4-1)
-    - [ ] 기록을 삭제하면 DB row와 `data/uploads/`의 사진 파일이 모두 사라진다 (F4-4)
-    - [ ] 사진을 교체하면 새 uuid 파일명이 DB에 들어가고 기존 파일은 삭제된다 (F4-5)
-    - [ ] `PATCH` 스키마에 `raw_text`가 없어, 값을 수정해도 원문은 바뀌지 않는다 (F1-5)
-  - 테스트 체크리스트 (Playwright MCP, `browser_evaluate`에서 `fetch` + `FormData`로 호출)
-    - [ ] 필수값 누락, `product_no` 101자, 공백만 있는 `lot` → 400과 `fields` 확인
-    - [ ] 6MB 파일 → 413, 텍스트 파일 → 415, 이때 `data/uploads/`에 파일이 남지 않음
-    - [ ] 사진 0장/1장/2장 생성 → 201, `created_at`이 `+09:00` 형식
-    - [ ] 중복 생성 → `duplicate: true`
-    - [ ] 목록 `limit=20`, `offset`, `q` 대소문자 무시 부분 일치, `limit=101` → 400
-    - [ ] 없는 id의 GET/PATCH/DELETE → 404, `id=0`/`id=abc` → 400
-    - [ ] PATCH로 사진 교체 후 이전 파일명으로 `GET /api/photos` → 404
+    - [x] 같은 Product No+Lot으로 두 번 저장하면 두 번째 응답이 `201`이고 `duplicate: true`다 (F4-1)
+    - [x] 기록을 삭제하면 DB row와 `data/uploads/`의 사진 파일이 모두 사라진다 (F4-4)
+    - [x] 사진을 교체하면 새 uuid 파일명이 DB에 들어가고 기존 파일은 삭제된다 (F4-5)
+    - [x] `PATCH` 스키마에 `raw_text`가 없어, 값을 수정해도 원문은 바뀌지 않는다 (F1-5)
+  - 테스트 체크리스트 (Playwright MCP `browser_evaluate`에서 `fetch` + `FormData`로 호출, curl 병행): 스크래치 `DATA_DIR`·dev 서버(포트 3103)에서 Task 011·010 체크리스트 24개 항목 전부 통과 — 상세 표는 `tasks/011-records-api.md` 참고
+    - [x] 필수값 누락, `product_no` 101자, 공백만 있는 `lot` → 400과 `fields` 확인
+    - [x] 6MB 파일 → 413, 텍스트 파일 → 415, 이때 `data/uploads/`에 파일이 남지 않음
+    - [x] 사진 0장/1장/2장 생성 → 201, `created_at`이 `+09:00` 형식
+    - [x] 중복 생성 → `duplicate: true`
+    - [x] 목록 `limit=20`, `offset`, `q` 대소문자 무시 부분 일치, `limit=101` → 400
+    - [x] 없는 id의 GET/PATCH/DELETE → 404, `id=0`/`id=abc` → 400
+    - [x] PATCH로 사진 교체 후 이전 파일명으로 `GET /api/photos` → 404
 
-- **Task 012: Excel 내보내기 API 구현**
+- **Task 012: Excel 내보내기 API 구현** ✅ - 완료 (012-A·012-B)
+  - See: `/tasks/012-excel-export.md`
   - 의존: Task 009, 010, 008-2
-  - 담당 파일: `src/app/api/export/route.ts`, `src/lib/excel-export.ts`(`server-only`), `src/lib/jpeg-size.ts`(순수 함수, `server-only` 아님)
+  - 담당 파일: `src/app/api/export/route.ts`, `src/lib/excel-export.ts`(`server-only`), `src/lib/jpeg-size.ts`(순수 함수, `server-only` 아님), `scripts/check-jpeg-size.ts`, `scripts/check-excel-export.ts`, `scripts/check-export.ts`, `scripts/seed-export-test.ts`
   - 구현 사항
-    - [ ] `GET /api/export?from=&to=`: Zod 검증 실패 또는 `from > to`면 `400 VALIDATION_ERROR`, 건수가 500건 초과면 `422 TOO_MANY_RECORDS`("기간을 좁혀주세요" 포함), 생성 실패면 `500 INTERNAL_ERROR` (PRD §4, F5-4, Q3)
-    - [ ] 기간 조회는 KST 기준: `created_at >= '{from}T00:00:00+09:00' AND created_at < '{to 다음 날}T00:00:00+09:00'` (모든 값이 같은 형식·오프셋이라 문자열 비교가 성립, Q2)
-    - [ ] `excel-export.ts`: `exceljs`로 8개 컬럼 No, 일시, Product No, Lot, QR 원문, 메모, 바코드 사진, 제품 사진 구성 (컬럼 추가 없음). 사진이 없거나 파일이 사라진 기록은 빈 셀 (F5-5)
-    - [ ] No는 파일 안 순번(1부터, DB id 아님), 행 순서는 `listRecordsForExport`의 `created_at ASC, id ASC` (F5-6, Q16)
-    - [ ] `jpeg-size.ts`: `readJpegSize(buffer): { width, height } | null`. 의존성 없이 SOF0(`0xFFC0`)/SOF2(`0xFFC2`) 마커에서 height/width(빅엔디안)를 읽음. `0xC4`(DHT)/`0xC8`/`0xCC`(DAC)는 SOF로 보지 않고, SOI/RST 등 길이 없는 마커는 건너뜀. JPEG가 아니거나 못 찾으면 `null` → 기본 상자 크기로 대체
-    - [ ] 비율 유지(contain): 고정 상자(가로 최대 240px·세로 최대 90px)에 대해 `scale = min(240 / w, 90 / h)`로 `ext`를 계산하고 `workbook.addImage({ buffer, extension: 'jpeg' })` + `worksheet.addImage(id, { tl, ext, editAs: 'oneCell' })`로 배치 (exceljs는 비율을 자동 유지하지 않음, F5-7)
-    - [ ] 행·열 크기: `row.height`는 pt 단위(`px × 0.75`, 90px → 67.5pt 이상), 사진 열 `column.width`는 문자 단위(`≈ (px − 5) / 7` + 여유 2~3)
-    - [ ] 헤더 행 스타일: 굵게, 배경색, 테두리, 가운데 정렬 (F5-7)
-    - [ ] 코드 주석으로 전제 명시: 저장된 JPEG는 Task 015에서 EXIF 회전을 픽셀에 반영한 정방향이므로 SOF 크기를 그대로 신뢰함 (PRD §8)
-    - [ ] 응답 헤더: `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename="records_{from}_{to}.xlsx"`
+    - [x] `GET /api/export?from=&to=`: Zod 검증 실패 또는 `from > to`면 `400 VALIDATION_ERROR`, 건수가 500건 초과면 `422 TOO_MANY_RECORDS`("기간을 좁혀주세요" 포함), 생성 실패면 `500 INTERNAL_ERROR` (PRD §4, F5-4, Q3)
+    - [x] 기간 조회는 KST 기준: `created_at >= '{from}T00:00:00+09:00' AND created_at < '{to 다음 날}T00:00:00+09:00'` (모든 값이 같은 형식·오프셋이라 문자열 비교가 성립, Q2)
+    - [x] `excel-export.ts`: `exceljs`로 8개 컬럼 No, 일시, Product No, Lot, QR 원문, 메모, 바코드 사진, 제품 사진 구성 (컬럼 추가 없음). 사진이 없거나 파일이 사라진 기록은 빈 셀 (F5-5)
+    - [x] No는 파일 안 순번(1부터, DB id 아님), 행 순서는 `listRecordsForExport`의 `created_at ASC, id ASC` (F5-6, Q16)
+    - [x] `jpeg-size.ts`: `readJpegSize(buffer): { width, height } | null`. 의존성 없이 SOF0(`0xFFC0`)/SOF2(`0xFFC2`) 마커에서 height/width(빅엔디안)를 읽음. `0xC4`(DHT)/`0xC8`/`0xCC`(DAC)는 SOF로 보지 않고, SOI/RST 등 길이 없는 마커는 건너뜀. JPEG가 아니거나 못 찾으면 `null` → 기본 상자 크기로 대체
+    - [x] 비율 유지(contain): 고정 상자(가로 최대 240px·세로 최대 90px)에 대해 `scale = min(240 / w, 90 / h)`로 `ext`를 계산하고 `workbook.addImage({ buffer, extension: 'jpeg' })` + `worksheet.addImage(id, { tl, ext, editAs: 'oneCell' })`로 배치 (exceljs는 비율을 자동 유지하지 않음, F5-7)
+    - [x] 행·열 크기: `row.height`는 pt 단위(`px × 0.75`, 90px → 67.5pt 이상), 사진 열 `column.width`는 문자 단위(`≈ (px − 5) / 7` + 여유 2~3)
+    - [x] 헤더 행 스타일: 굵게, 배경색, 테두리, 가운데 정렬 (F5-7)
+    - [x] 코드 주석으로 전제 명시: 저장된 JPEG는 Task 015에서 EXIF 회전을 픽셀에 반영한 정방향이므로 SOF 크기를 그대로 신뢰함 (PRD §8)
+    - [x] 응답 헤더: `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`, `Content-Disposition: attachment; filename="records_{from}_{to}.xlsx"`
   - 완료 조건
-    - [ ] 받은 xlsx를 열면 사진 컬럼에 썸네일이 셀 안에 있고, 사진 없는 기록은 빈 셀이다 (F5-5)
-    - [ ] No가 1부터 이어지고, 행이 스캔 순서대로 나열된다 (F5-6)
-    - [ ] 3:1, 5:1 사진이 원본 비율을 유지한 채 셀 상자 안에 들어가고, 헤더 행 스타일이 적용되어 있다 (F5-7)
-    - [ ] 501건 기간 요청은 422로 거부된다 (F5-4, 화면 검사와 별개로 서버에서 강제)
-  - 테스트 체크리스트 (Playwright MCP)
-    - [ ] `from > to`, `2026-13-01`, 파라미터 누락 → 400
-    - [ ] API로 사진 없는 기록 501건 생성 후 요청 → 422와 "기간을 좁혀주세요" 메시지
-    - [ ] 정상 요청 → 파일명·헤더 확인, 받은 파일을 `exceljs`로 다시 읽어 행 수와 이미지 개수 확인
-    - [ ] 23:59 KST와 00:00 KST 경계 기록이 올바른 날짜에 포함되는지 확인
-    - [ ] 기록 4건을 순서대로 생성(예: Lot `2608200040` → `41` → `44` → `42`) 후 내보내기 → No가 1~4, 행 순서가 생성 순서와 같음 (DB id와 무관)
-    - [ ] 3:1, 5:1 샘플 JPEG를 넣은 기록 내보내기 → 받은 파일을 `exceljs`로 다시 읽어 각 이미지 `ext`의 가로/세로 비율이 원본과 같고(오차 1% 이내) 240x90 상자를 넘지 않음
-    - [ ] JPEG가 아닌(또는 SOF를 못 찾는) 파일은 기본 상자 크기로 들어가고 오류가 나지 않음
+    - [x] 받은 xlsx를 열면 사진 컬럼에 썸네일이 셀 안에 있고, 사진 없는 기록은 빈 셀이다 (F5-5)
+    - [x] No가 1부터 이어지고, 행이 스캔 순서대로 나열된다 (F5-6)
+    - [x] 3:1, 5:1 사진이 원본 비율을 유지한 채 셀 상자 안에 들어가고, 헤더 행 스타일이 적용되어 있다 (F5-7) — 바코드(3:1) 오차 0.12%, 제품(5:1) 오차 0%
+    - [x] 501건 기간 요청은 422로 거부된다 (F5-4, 화면 검사와 별개로 서버에서 강제)
+  - 테스트 체크리스트 (스크래치 `DATA_DIR`·dev 서버(포트 3104)에서 curl + `scripts/check-export.ts`로 수행, 화면 미연결로 Playwright 대신 사용): 012-A(순수 로직)·012-B(`GET /api/export`) 전 항목 통과 — 상세 표는 `tasks/012-excel-export.md` 참고
+    - [x] `from > to`, `2026-13-01`, 파라미터 누락 → 400
+    - [x] API로 사진 없는 기록 501건 생성 후 요청 → 422와 "기간을 좁혀주세요" 메시지
+    - [x] 정상 요청 → 파일명·헤더 확인, 받은 파일을 `exceljs`로 다시 읽어 행 수와 이미지 개수 확인
+    - [x] 23:59 KST와 00:00 KST 경계 기록이 올바른 날짜에 포함되는지 확인
+    - [x] 기록 4건을 순서대로 생성(예: Lot `2608200040` → `41` → `44` → `42`) 후 내보내기 → No가 1~4, 행 순서가 생성 순서와 같음 (DB id와 무관)
+    - [x] 3:1, 5:1 샘플 JPEG를 넣은 기록 내보내기 → 받은 파일을 `exceljs`로 다시 읽어 각 이미지 `ext`의 가로/세로 비율이 원본과 같고(오차 1% 이내) 240x90 상자를 넘지 않음
+    - [x] JPEG가 아닌(또는 SOF를 못 찾는) 파일은 기본 상자 크기로 들어가고 오류가 나지 않음
   - 확인 필요: Q2, Q3, Q16
 
 **Phase 3 완료 조건**
 
-- [ ] `npm run check-all` 통과
-- [ ] `npm run build` 통과
-- [ ] Task 010, 011, 012 테스트 체크리스트 전부 통과
+- [x] `npm run check-all` 통과
+- [x] `npm run build` 통과 (API 라우트 4개 모두 동적(ƒ)으로 표시, `data/` 미생성, 클라이언트 번들에 서버 전용 모듈 없음)
+- [x] Task 010, 011, 012 테스트 체크리스트 전부 통과
 
 ### Phase 4: 스캔·촬영·저장 기능 연결
 

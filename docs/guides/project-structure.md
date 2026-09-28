@@ -48,9 +48,19 @@ src/app/
 │       ├── page.tsx
 │       ├── loading.tsx  # 로딩 스켈레톤
 │       └── _components/ # 상세 전용: record-detail-view·record-detail-skeleton·delete-record-button·record-not-found
-└── export/              # 📊 Excel 내보내기 (/export)
-    ├── page.tsx
-    └── _components/     # 내보내기 전용: export-form(기간·흐름)·export-status(상태 표시)
+├── export/              # 📊 Excel 내보내기 (/export)
+│   ├── page.tsx
+│   └── _components/     # 내보내기 전용: export-form(기간·흐름)·export-status(상태 표시)
+└── api/                 # 🌐 Route Handler (Phase 3, 화면 미연결)
+    ├── photos/
+    │   └── [file]/
+    │       └── route.ts # GET /api/photos/[file] (사진 조회, 매직 바이트 기반 Content-Type)
+    ├── records/
+    │   ├── route.ts     # GET(목록)·POST(생성) /api/records
+    │   └── [id]/
+    │       └── route.ts # GET·PATCH·DELETE /api/records/[id]
+    └── export/
+        └── route.ts     # GET /api/export?from=&to= (Excel 다운로드)
 ```
 
 **🚀 App Router 규칙:**
@@ -132,6 +142,13 @@ src/lib/
 ├── time.ts            # 🕘 KST 시간 유틸 (nowKstIso 등, 브라우저·Node 공용)
 ├── api-error.ts       # ⚠️ 에러 응답 헬퍼 (Route Handler 전용)
 ├── preview-state.ts   # 👀 Phase 2 ?preview=<상태> 헬퍼 (개발 모드 전용, 공용)
+├── db.ts              # 🗄️ SQLite 연결 (`server-only`, 지연 초기화·WAL·user_version 마이그레이션)
+├── records-repo.ts    # 🗂️ 기록 리포지토리 (`server-only`, CRUD·검색·기간 조회·EXPLAIN 검증됨)
+├── storage.ts         # 🖼️ 사진 저장소 (`server-only`, 저장·삭제·경로 검증·매직 바이트 판별)
+├── record-mapper.ts   # 🔁 RecordRow → RecordDto 변환 (Route Handler 공용)
+├── record-form.ts     # 📝 multipart 공통 헬퍼 (필드·사진 분리, 사전 검사, 저장, 롤백)
+├── jpeg-size.ts        # 📐 JPEG SOF 마커에서 가로·세로 판독 (의존성 없는 순수 함수, `server-only` 아님)
+├── excel-export.ts    # 📊 Excel 워크북 생성 (`server-only`, exceljs로 8컬럼 + 사진 썸네일)
 ├── types/             # 📐 공통 타입
 │   ├── record.ts      # RecordRow, RecordDto, CreateRecordResponse, RecordListResponse
 │   └── api.ts         # ApiErrorCode, ApiErrorBody
@@ -139,30 +156,33 @@ src/lib/
 │   ├── record.ts      # 기록 생성·수정·id·목록 쿼리
 │   ├── export.ts      # 날짜·내보내기 쿼리
 │   └── photo.ts       # 사진 파일명·파일 검사
+├── api/               # 🌐 브라우저 전용 fetch 래퍼 (server-only 모듈 import 금지)
+│   └── records-client.ts # createRecord·listRecords·getRecord·updateRecord·deleteRecord·ApiError·photoUrl
 └── mock/              # 🧪 Phase 2 화면용 더미 데이터
     └── records.ts
 ```
 
-**📚 Phase 3 이후 추가 예정 (서버 전용은 첫 줄 `import 'server-only'`):**
+**📚 Phase 4 이후 추가 예정:**
 
 ```
 src/lib/
-├── db.ts              # SQLite 연결 (서버 전용)
-├── records-repo.ts    # 기록 리포지토리 (서버 전용)
-├── storage.ts         # 사진 저장소 (서버 전용)
-├── excel-export.ts    # Excel 생성 (서버 전용)
-├── qr-parser.ts       # QR 파서 (브라우저·Node 공용 순수 함수)
-└── api/               # 클라이언트용 fetch 래퍼 (*-client.ts)
+└── qr-parser.ts       # QR 파서 (브라우저·Node 공용 순수 함수)
 ```
 
 ### 기타 폴더
 
 ```
 public/mock/           # 🖼️ 더미 샘플 이미지 (barcode-sample.jpg 800x267 3:1, product-sample.jpg 800x160 5:1, 가로형)
-scripts/               # 🔍 Node 24 타입 스트리핑 검증 스크립트
-├── register-alias.mjs # '@/' 별칭 resolve 훅
-├── check-schemas.ts   # 스키마 경계값 검사
-└── check-time.ts      # KST 유틸 타임존 독립성 검사
+scripts/               # 🔍 Node 24 타입 스트리핑 검증 스크립트 (DATA_DIR는 반드시 스크래치 임시 폴더로 지정)
+├── register-alias.mjs      # '@/' 별칭 resolve 훅, 'server-only'는 빈 모듈로 대체
+├── check-schemas.ts        # 스키마 경계값 검사
+├── check-time.ts           # KST 유틸 타임존 독립성 검사
+├── check-repo.ts           # db.ts·records-repo.ts 검증 (생성·CRUD·검색·EXPLAIN QUERY PLAN)
+├── check-storage.ts        # storage.ts 검증 (저장·삭제·경로 검증·매직 바이트)
+├── check-jpeg-size.ts      # jpeg-size.ts 검증 (SOF 판독·손상 버퍼 null 처리)
+├── check-excel-export.ts   # excel-export.ts 검증 (행 수·No 순번·헤더 스타일·사진 비율)
+├── check-export.ts         # GET /api/export 응답 xlsx를 exceljs로 재읽기해 검증
+└── seed-export-test.ts     # 내보내기 테스트용 DB 직접 시드 (many/boundary/lots 서브커맨드)
 tasks/                 # 📋 Task 작업 파일 (000-sample.md 템플릿)
 ```
 
@@ -171,6 +191,12 @@ tasks/                 # 📋 Task 작업 파일 (000-sample.md 템플릿)
 ```bash
 node --import ./scripts/register-alias.mjs scripts/check-schemas.ts
 TZ=UTC node --import ./scripts/register-alias.mjs scripts/check-time.ts
+
+# DATA_DIR가 필요한 스크립트(반드시 스크래치 임시 폴더로 지정, 실제 data/는 절대 지정하지 않음)
+DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-repo.ts
+DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-storage.ts
+DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-jpeg-size.ts
+DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-excel-export.ts
 ```
 
 ## 🏷️ 파일 네이밍 컨벤션
