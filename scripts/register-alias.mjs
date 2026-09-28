@@ -21,12 +21,18 @@ function resolveTsFile(basePath) {
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // 'server-only'는 Next.js 번들러 전용 표식이라 순수 Node 스크립트에서는 빈 모듈로 대체한다
+    if (specifier === 'server-only') {
+      return { url: 'data:text/javascript,', shortCircuit: true }
+    }
     let basePath = null
     if (specifier.startsWith('@/')) {
       basePath = path.join(srcDir, specifier.slice(2))
     } else if (
       (specifier.startsWith('./') || specifier.startsWith('../')) &&
-      context.parentURL?.startsWith('file:')
+      context.parentURL?.startsWith('file:') &&
+      // node_modules 내부(CJS require 포함)의 상대 경로는 Node 기본 해석에 맡긴다
+      !context.parentURL.includes('/node_modules/')
     ) {
       basePath = path.resolve(
         path.dirname(fileURLToPath(context.parentURL)),
