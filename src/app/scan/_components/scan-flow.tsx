@@ -11,7 +11,11 @@ import { ConfirmDialog } from '@/components/dialogs/confirm-dialog'
 import { AppHeader } from '@/components/layout/app-header'
 import { Container } from '@/components/layout/container'
 import type { PhotoSlotState } from '@/components/records/photo-slot'
-import { MOCK_RECORDS, type MockPhotoKind } from '@/lib/mock/records'
+import {
+  MOCK_PHOTO_URL,
+  MOCK_RECORDS,
+  type MockPhotoKind,
+} from '@/lib/mock/records'
 
 export type ScanPreview =
   | 'denied'
@@ -86,15 +90,13 @@ const EMPTY_PHOTOS: Record<PhotoKind, PhotoSlotState> = {
 }
 
 // 더미 사진 경로 (public/mock). 촬영 버튼을 누르면 이 이미지로 채운다
-const DUMMY_PHOTO_URL: Record<PhotoKind, string> = {
-  barcode: '/mock/barcode-sample.jpg',
-  product: '/mock/product-sample.jpg',
-}
+const DUMMY_PHOTO_URL: Record<PhotoKind, string> = MOCK_PHOTO_URL
 
-// 더미 QR 인식 값. 더미 목록에 없는 값이라 저장하면 중복이 아니다
+// 더미 QR 인식 값. 참고 라벨 형식(P/NO는 정규화 결과 흉내, ROADMAP Q1·Q15).
+// 더미 목록에 없는 lot이라 저장해도 중복이 아니다
 const DUMMY_DETECTION: ScanDetection = {
-  rawText: 'PN:DK-3001;LOT:L2026-0928Z',
-  parsed: { productNo: 'DK-3001', lot: 'L2026-0928Z' },
+  rawText: '2609290001 84739DC000G2E HW 1.00',
+  parsed: { productNo: '84739-DC000(G2E)', lot: '2609290001' },
 }
 // 파싱 실패 미리보기용 원문 (규칙에 맞지 않는 형식)
 const UNPARSED_RAW_TEXT = 'DUCKIL#20260928#A7F3-UNKNOWN-FORMAT'

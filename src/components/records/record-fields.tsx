@@ -71,6 +71,7 @@ export function RecordFields({
                 disabled={disabled}
                 autoCapitalize="characters"
                 autoComplete="off"
+                placeholder="예: 84739-DC000(G2E)"
                 className="h-12 text-base"
               />
             </FormControl>
@@ -91,6 +92,7 @@ export function RecordFields({
                 disabled={disabled}
                 autoCapitalize="characters"
                 autoComplete="off"
+                placeholder="예: 2608200040"
                 className="h-12 text-base"
               />
             </FormControl>

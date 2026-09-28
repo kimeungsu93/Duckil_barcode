@@ -1,6 +1,10 @@
 import { ArrowLeft, Loader2, Save } from 'lucide-react'
 import type { PhotoKind } from './scan-flow'
-import { PhotoSlot, type PhotoSlotState } from '@/components/records/photo-slot'
+import {
+  PHOTO_SLOTS,
+  PhotoSlot,
+  type PhotoSlotState,
+} from '@/components/records/photo-slot'
 import { Button } from '@/components/ui/button'
 
 interface PhotoStepProps {
@@ -12,11 +16,6 @@ interface PhotoStepProps {
   onBack: () => void
 }
 
-const SLOTS: { kind: PhotoKind; label: string }[] = [
-  { kind: 'barcode', label: '바코드 사진' },
-  { kind: 'product', label: '제품 사진' },
-]
-
 export function PhotoStep({
   photos,
   saving,
@@ -27,10 +26,11 @@ export function PhotoStep({
 }: PhotoStepProps) {
   return (
     <div className="flex flex-col gap-4">
-      {SLOTS.map(({ kind, label }) => (
+      {PHOTO_SLOTS.map(({ kind, label, hint }) => (
         <PhotoSlot
           key={kind}
           label={label}
+          hint={hint}
           state={photos[kind]}
           onCapture={() => onCapture(kind)}
           onClear={() => onClear(kind)}

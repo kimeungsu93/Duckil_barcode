@@ -15,14 +15,14 @@ export function RecordListItem({ record, thumbnailUrl }: RecordListItemProps) {
       href={`/records/${record.id}`}
       className="hover:bg-accent/50 -mx-2 flex min-h-[72px] items-center gap-3 rounded-md px-2 py-3 transition-colors"
     >
-      <div className="bg-muted relative size-16 shrink-0 overflow-hidden rounded-md">
+      <div className="bg-muted relative h-14 w-20 shrink-0 overflow-hidden rounded-md">
         {thumbnailUrl ? (
-          // 사진 경로가 더미(/mock)·API(/api/photos)·blob으로 바뀌므로 최적화를 끈다
+          // 사진 경로가 더미(/mock)·API(/api/photos)·blob으로 바뀌므로 최적화를 끈다. 가로형 썸네일은 식별용이라 cover 유지
           <Image
             src={thumbnailUrl}
             alt=""
             fill
-            sizes="64px"
+            sizes="80px"
             unoptimized
             className="object-cover"
           />

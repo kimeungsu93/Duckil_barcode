@@ -10,7 +10,7 @@ interface ScannerViewProps {
 // 카메라 영역 + 조준 사각형. Phase 2에서는 회색 영역만 보여준다
 export function ScannerView({
   children,
-  hint = 'QR을 사각형 안에 맞춰주세요',
+  hint = '코드를 사각형 안에 맞춰주세요',
   className,
 }: ScannerViewProps) {
   return (

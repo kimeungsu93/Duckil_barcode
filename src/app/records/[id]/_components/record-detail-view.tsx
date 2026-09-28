@@ -8,11 +8,16 @@ import { Loader2, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import type { z } from 'zod'
 import { DeleteRecordButton } from './delete-record-button'
-import { PhotoSlot, type PhotoSlotState } from '@/components/records/photo-slot'
+import {
+  PHOTO_SLOTS,
+  PhotoSlot,
+  type PhotoSlotState,
+} from '@/components/records/photo-slot'
 import { RawTextBox } from '@/components/records/raw-text-box'
 import { RecordFields } from '@/components/records/record-fields'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
+import { MOCK_PHOTO_URL } from '@/lib/mock/records'
 import { updateRecordSchema } from '@/lib/schemas/record'
 import { formatKstDisplay, nowKstIso } from '@/lib/time'
 import type { RecordDto } from '@/lib/types/record'
@@ -39,16 +44,8 @@ interface RecordDetailViewProps {
   onDelete?: () => Promise<void>
 }
 
-const SLOTS: { kind: PhotoKind; label: string }[] = [
-  { kind: 'barcode', label: '바코드 사진' },
-  { kind: 'product', label: '제품 사진' },
-]
-
 // 더미 재촬영 이미지 (public/mock)
-const DUMMY_PHOTO_URL: Record<PhotoKind, string> = {
-  barcode: '/mock/barcode-sample.jpg',
-  product: '/mock/product-sample.jpg',
-}
+const DUMMY_PHOTO_URL: Record<PhotoKind, string> = MOCK_PHOTO_URL
 
 function wait(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms))
@@ -158,10 +155,11 @@ export function RecordDetailView({
         </dl>
         <RawTextBox rawText={record.raw_text} />
         <RecordFields disabled={busy} />
-        {SLOTS.map(({ kind, label }) => (
+        {PHOTO_SLOTS.map(({ kind, label, hint }) => (
           <PhotoSlot
             key={kind}
             label={label}
+            hint={hint}
             state={photos[kind]}
             // 더미 재촬영: 같은 샘플 이미지로 교체 (Task 015에서 촬영·리사이즈 연결)
             onCapture={() => {

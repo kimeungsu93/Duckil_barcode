@@ -47,7 +47,7 @@ export function RecordList({
       <EmptyState
         icon={Inbox}
         title="아직 기록이 없습니다"
-        description="제품 QR을 스캔해 첫 기록을 남겨보세요"
+        description="제품 코드를 스캔해 첫 기록을 남겨보세요"
         action={
           <Button asChild size="touch" className="w-full">
             <Link href="/scan">

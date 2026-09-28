@@ -10,6 +10,8 @@ export type PhotoSlotState =
 
 interface PhotoSlotProps {
   label: string
+  // 슬롯별 촬영 안내 문구 (PRD F3). 지정하지 않으면 표시하지 않는다
+  hint?: string
   state: PhotoSlotState
   // 촬영(재촬영) 요청. Phase 2는 더미, Task 015에서 파일 입력·리사이즈로 교체
   onCapture: () => void
@@ -18,9 +20,24 @@ interface PhotoSlotProps {
   disabled?: boolean
 }
 
+// 바코드·제품 사진 슬롯 공용 정의 (PRD F3). photo-step·record-detail-view가 함께 쓴다
+export const PHOTO_SLOTS: {
+  kind: 'barcode' | 'product'
+  label: string
+  hint: string
+}[] = [
+  {
+    kind: 'barcode',
+    label: '바코드 사진',
+    hint: '라벨과 검사 스티커가 보이게 가까이',
+  },
+  { kind: 'product', label: '제품 사진', hint: '제품 전체가 보이게 가로로' },
+]
+
 // 사진 1장 슬롯 (빈 상태 / 미리보기 / 오류)
 export function PhotoSlot({
   label,
+  hint,
   state,
   onCapture,
   onClear,
@@ -28,22 +45,25 @@ export function PhotoSlot({
 }: PhotoSlotProps) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium">{label}</p>
+      <div>
+        <p className="text-sm font-medium">{label}</p>
+        {hint && <p className="text-muted-foreground text-sm">{hint}</p>}
+      </div>
       <div
         className={cn(
-          'bg-muted relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-lg',
+          'bg-muted relative flex aspect-[2/1] w-full items-center justify-center overflow-hidden rounded-lg',
           state.status === 'error' && 'border-destructive border-2'
         )}
       >
         {state.status === 'preview' && (
-          // 미리보기는 blob URL(Task 015)·API 경로도 오므로 최적화를 끈다
+          // 미리보기는 blob URL(Task 015)·API 경로도 오므로 최적화를 끈다. 가로로 긴 사진이 잘리지 않게 contain
           <Image
             src={state.url}
             alt={`${label} 미리보기`}
             fill
             sizes="(max-width: 480px) 100vw, 448px"
             unoptimized
-            className="object-cover"
+            className="object-contain"
           />
         )}
         {state.status === 'empty' && (

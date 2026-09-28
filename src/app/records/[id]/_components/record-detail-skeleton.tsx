@@ -18,7 +18,7 @@ export function RecordDetailSkeleton() {
             </div>
           ))}
           <Skeleton className="h-24 w-full" />
-          <Skeleton className="aspect-[4/3] w-full" />
+          <Skeleton className="aspect-[2/1] w-full" />
         </Container>
       </main>
     </>
