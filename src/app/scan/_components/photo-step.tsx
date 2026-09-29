@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button'
 
 interface PhotoStepProps {
   photos: Record<PhotoKind, PhotoSlotState>
+  // 리사이즈 처리 중 여부(슬롯별). 저장 버튼은 처리 중에도 비활성화한다
+  busy: Record<PhotoKind, boolean>
   saving: boolean
-  onCapture: (kind: PhotoKind) => void
+  onFileSelected: (kind: PhotoKind, file: File) => void
   onClear: (kind: PhotoKind) => void
   onSave: () => void
   onBack: () => void
@@ -18,12 +20,15 @@ interface PhotoStepProps {
 
 export function PhotoStep({
   photos,
+  busy,
   saving,
-  onCapture,
+  onFileSelected,
   onClear,
   onSave,
   onBack,
 }: PhotoStepProps) {
+  const anyBusy = busy.barcode || busy.product
+
   return (
     <div className="flex flex-col gap-4">
       {PHOTO_SLOTS.map(({ kind, label, hint }) => (
@@ -32,9 +37,12 @@ export function PhotoStep({
           label={label}
           hint={hint}
           state={photos[kind]}
-          onCapture={() => onCapture(kind)}
+          // onFileSelected를 전달하므로 실제로는 호출되지 않는다 (PhotoSlot이 파일 입력을 대신 연다)
+          onCapture={() => {}}
+          onFileSelected={file => onFileSelected(kind, file)}
           onClear={() => onClear(kind)}
           disabled={saving}
+          busy={busy[kind]}
         />
       ))}
       {/* 저장 버튼을 엄지가 닿는 하단에 고정한다 (스캔 화면은 탭 바가 없음) */}
@@ -57,7 +65,7 @@ export function PhotoStep({
             size="touch"
             className="col-span-2"
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || anyBusy}
           >
             {saving ? <Loader2 className="animate-spin" /> : <Save />}
             {saving ? '저장 중...' : '저장'}

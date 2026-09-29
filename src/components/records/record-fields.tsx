@@ -24,12 +24,15 @@ interface RecordFieldsProps {
   // 직접 입력 모드에서만 "QR 원문(선택)" 입력란을 보여준다 (ROADMAP Q7)
   showRawTextInput?: boolean
   disabled?: boolean
+  // QR 원문 입력란에서 포커스를 벗어났을 때 호출 (Task 016: parseQr로 자동 입력)
+  onRawTextBlur?: () => void
 }
 
 // 상위 컴포넌트의 <Form>(FormProvider) 안에서 사용한다
 export function RecordFields({
   showRawTextInput = false,
   disabled = false,
+  onRawTextBlur,
 }: RecordFieldsProps) {
   const { control } = useFormContext<RecordFieldsValues>()
   const memo = useWatch({ control, name: 'memo' }) ?? ''
@@ -47,6 +50,10 @@ export function RecordFields({
                 <Input
                   {...field}
                   value={field.value ?? ''}
+                  onBlur={() => {
+                    field.onBlur()
+                    onRawTextBlur?.()
+                  }}
                   disabled={disabled}
                   maxLength={RAW_TEXT_MAX_LENGTH}
                   placeholder="라벨에 적힌 원문이 있으면 입력"

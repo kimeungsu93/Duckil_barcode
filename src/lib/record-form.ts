@@ -57,33 +57,43 @@ export function readRecordForm(formData: FormData): RecordFormData {
 
 export type PhotoPrecheckResult =
   | { ok: true }
-  | { ok: false; code: 'PAYLOAD_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE' }
+  | {
+      ok: false
+      code: 'PAYLOAD_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE'
+      // 어느 사진 필드에서 실패했는지 (Task 016: 클라이언트가 해당 슬롯에 오류를 표시할 때 사용)
+      field: (typeof PHOTO_FIELD_KEYS)[number]
+    }
 
 // 저장 전에 보내진 사진 전부(MIME·크기)를 먼저 검사한다. 하나라도 실패하면 ok:false를 반환하며,
 // 호출 측은 이 결과를 확인한 뒤에만 savePhotos를 호출해야 한다 (아무 파일도 쓰기 전에 차단, PRD §4)
 export function precheckPhotos(photos: RecordFormPhotos): PhotoPrecheckResult {
-  for (const file of Object.values(photos)) {
+  for (const key of PHOTO_FIELD_KEYS) {
+    const file = photos[key]
     if (!file) continue
     const check = checkPhotoFile({ size: file.size, type: file.type })
     if (!check.ok) {
-      return check
+      return { ...check, field: key }
     }
   }
   return { ok: true }
 }
 
-// precheckPhotos 실패 결과를 413/415 응답으로 바꾼다
+// precheckPhotos 실패 결과를 413/415 응답으로 바꾼다.
+// fields에 실패한 사진 필드명을 담아 클라이언트가 해당 슬롯에 오류를 표시할 수 있게 한다
+// (PRD §4 fields는 선택 필드라 기존 형식과 호환)
 export function precheckErrorResponse(
   result: Extract<PhotoPrecheckResult, { ok: false }>
 ) {
   if (result.code === 'PAYLOAD_TOO_LARGE') {
-    return apiError(413, 'PAYLOAD_TOO_LARGE', '사진 파일이 5MB를 초과했습니다')
+    const message = '사진 파일이 5MB를 초과했습니다'
+    return apiError(413, 'PAYLOAD_TOO_LARGE', message, {
+      [result.field]: message,
+    })
   }
-  return apiError(
-    415,
-    'UNSUPPORTED_MEDIA_TYPE',
-    '지원하지 않는 이미지 형식입니다'
-  )
+  const message = '지원하지 않는 이미지 형식입니다'
+  return apiError(415, 'UNSUPPORTED_MEDIA_TYPE', message, {
+    [result.field]: message,
+  })
 }
 
 // precheckPhotos를 통과한 파일명 키만 채워지는 저장 결과
@@ -102,7 +112,18 @@ export async function savePhotos(
     for (const key of PHOTO_FIELD_KEYS) {
       const file = photos[key]
       if (!file) continue
-      saved[key] = await savePhoto(file)
+      try {
+        saved[key] = await savePhoto(file)
+      } catch (error) {
+        // 매직 바이트 재검사 실패 시에도 어느 필드인지 표시할 수 있게 에러에 붙여둔다
+        if (
+          error instanceof PhotoTooLargeError ||
+          error instanceof UnsupportedMediaError
+        ) {
+          Object.assign(error, { field: key })
+        }
+        throw error
+      }
     }
     return saved
   } catch (error) {
@@ -118,14 +139,26 @@ export async function rollbackSavedPhotos(saved: SavedPhotos): Promise<void> {
   }
 }
 
+// savePhotos가 남겨둔 field 표시를 fields 맵으로 바꾼다 (없으면 undefined)
+function fieldsFor(
+  error: Error & { field?: (typeof PHOTO_FIELD_KEYS)[number] }
+): Record<string, string> | undefined {
+  return error.field ? { [error.field]: error.message } : undefined
+}
+
 // savePhotos/savePhoto가 던진 전용 에러를 413/415 응답으로 바꾼다.
 // 매칭되지 않는 에러(예: 파일시스템 오류)면 null을 반환해 호출 측이 500 등으로 처리하게 한다
 export function photoErrorResponse(error: unknown) {
   if (error instanceof PhotoTooLargeError) {
-    return apiError(413, 'PAYLOAD_TOO_LARGE', error.message)
+    return apiError(413, 'PAYLOAD_TOO_LARGE', error.message, fieldsFor(error))
   }
   if (error instanceof UnsupportedMediaError) {
-    return apiError(415, 'UNSUPPORTED_MEDIA_TYPE', error.message)
+    return apiError(
+      415,
+      'UNSUPPORTED_MEDIA_TYPE',
+      error.message,
+      fieldsFor(error)
+    )
   }
   return null
 }
