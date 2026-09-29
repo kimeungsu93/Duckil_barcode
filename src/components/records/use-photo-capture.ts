@@ -17,14 +17,30 @@ export interface UsePhotoCaptureResult {
 
 const EMPTY_SLOT: PhotoSlotState = { status: 'empty' }
 
+export interface UsePhotoCaptureOptions {
+  // 상세 화면(Task 018)에서 기존 사진 URL로 시작할 때 쓴다. blob URL이 아니라 API 경로이므로
+  // revoke 대상이 아니다. 지정하지 않으면 기존처럼 빈 상태(scan-flow)로 시작한다
+  initialUrl?: string | null
+}
+
+// initialUrl이 있으면 미리보기 상태로, 없으면 빈 상태로 시작한다 (reset()에서도 같은 기준을 쓴다)
+function initialSlotFor(initialUrl: string | null): PhotoSlotState {
+  return initialUrl ? { status: 'preview', url: initialUrl } : EMPTY_SLOT
+}
+
 // 사진 슬롯 1개의 선택·리사이즈·미리보기 상태를 관리하는 범용 훅.
 // scan-flow(Task 016)와 상세 화면(Task 018)이 함께 재사용할 수 있게 PhotoSlot 전용 의존성 없이 만든다
-export function usePhotoCapture(): UsePhotoCaptureResult {
-  const [slot, setSlot] = useState<PhotoSlotState>(EMPTY_SLOT)
+export function usePhotoCapture(
+  options: UsePhotoCaptureOptions = {}
+): UsePhotoCaptureResult {
+  const initialUrl = options.initialUrl ?? null
+  const [slot, setSlot] = useState<PhotoSlotState>(() =>
+    initialSlotFor(initialUrl)
+  )
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // 현재 미리보기로 쓰고 있는 objectURL. 교체·정리 시점에 revoke하기 위해 추적한다
+  // 현재 미리보기로 쓰고 있는 objectURL. 교체·정리 시점에 revoke하기 위해 추적한다 (initialUrl은 제외)
   const urlRef = useRef<string | null>(null)
   // 마지막 select 호출의 결과만 반영하기 위한 순번 (연속 선택 시 경쟁 상태 방지)
   const requestIdRef = useRef(0)
@@ -71,6 +87,16 @@ export function usePhotoCapture(): UsePhotoCaptureResult {
     setBusy(false)
   }, [revokeCurrent])
 
+  // 초기 상태(빈 상태 또는 initialUrl 미리보기)로 되돌린다. clear()는 항상 빈 상태로 보내지만
+  // reset()은 initialUrl이 있으면 그 미리보기로 되돌아간다는 점이 다르다
+  const reset = useCallback(() => {
+    requestIdRef.current += 1
+    revokeCurrent()
+    setFile(null)
+    setSlot(initialSlotFor(initialUrl))
+    setBusy(false)
+  }, [revokeCurrent, initialUrl])
+
   const setError = useCallback(
     (message: string) => {
       requestIdRef.current += 1
@@ -87,5 +113,5 @@ export function usePhotoCapture(): UsePhotoCaptureResult {
     return () => revokeCurrent()
   }, [revokeCurrent])
 
-  return { slot, file, busy, select, clear, setError, reset: clear }
+  return { slot, file, busy, select, clear, setError, reset }
 }
