@@ -9,6 +9,11 @@ export type PhotoMimeType = (typeof PHOTO_ALLOWED_TYPES)[number]
 export const RESIZE_MAX_EDGE = 1600
 export const RESIZE_JPEG_QUALITY = 0.8
 
+// 사진 디코딩 실패 안내 문구 (PRD §5 S-스캔-4, §8).
+// scan-flow.tsx에 있던 동일 문자열 정의를 여기로 옮겨 공용화한다(Task 016에서 import로 교체)
+export const PHOTO_DECODE_ERROR =
+  '지원하지 않는 이미지 형식입니다. 다시 촬영해주세요'
+
 // 입력 길이 (PRD §4 검증 표)
 export const RAW_TEXT_MAX_LENGTH = 2000
 export const FIELD_MAX_LENGTH = 100
