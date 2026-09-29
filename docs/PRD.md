@@ -184,8 +184,8 @@
   ```
 - 오류 응답:
   - `400 VALIDATION_ERROR` — 필수값 누락/형식 오류 (`fields`에 필드별 메시지)
-  - `413 PAYLOAD_TOO_LARGE` — 사진이 5MB 초과
-  - `415 UNSUPPORTED_MEDIA_TYPE` — 이미지가 아닌 파일 업로드
+  - `413 PAYLOAD_TOO_LARGE` — 사진이 5MB 초과 (`fields`에 `barcode_photo` 또는 `product_photo` 중 실패한 슬롯 이름과 메시지 포함, 화면이 해당 사진 슬롯에 오류를 표시할 때 사용, Task 016)
+  - `415 UNSUPPORTED_MEDIA_TYPE` — 이미지가 아닌 파일 업로드 (`fields`에 동일하게 실패한 사진 슬롯 이름 포함)
   - `500 INTERNAL_ERROR` — DB/파일 저장 실패 (저장 실패 시 이미 쓰여진 사진 파일은 롤백 삭제)
 
 ### `GET /api/records`

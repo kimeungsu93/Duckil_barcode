@@ -45,10 +45,10 @@ Phase 1 기반 정리 ──▶ Phase 2 웹 화면 UI (더미 데이터) ──�
 | 3     | 010   | 사진 저장소 유틸 및 `GET /api/photos/[file]` 구현               | 003, 008-1, 008-2  | [x]                    |
 | 3     | 011   | 기록 CRUD API 구현                                              | 009, 010, 008-2    | [x]                    |
 | 3     | 012   | Excel 내보내기 API 구현                                         | 009, 010, 008-2    | [x]                    |
-| 4     | 013   | QR 파서 모듈 구현 (교체 가능 구조 + 기본 규칙)                  | 003                | [ ]                    |
-| 4     | 014   | QR 스캐너 카메라 로직 구현 (권한·미지원 처리)                   | 006                | [ ]                    |
-| 4     | 015   | 사진 리사이즈 로직 구현 및 사진 슬롯 연결                       | 006                | [ ]                    |
-| 4     | 016   | `/scan` 저장 흐름 연결                                          | 011, 013, 014, 015 | [ ]                    |
+| 4     | 013   | QR 파서 모듈 구현 (교체 가능 구조 + 기본 규칙)                  | 003                | [x]                    |
+| 4     | 014   | QR 스캐너 카메라 로직 구현 (권한·미지원 처리)                   | 006                | [x]                    |
+| 4     | 015   | 사진 리사이즈 로직 구현 및 사진 슬롯 연결                       | 006                | [x]                    |
+| 4     | 016   | `/scan` 저장 흐름 연결                                          | 011, 013, 014, 015 | [x]                    |
 | 5     | 017   | 홈 화면 API 연결 (목록·검색·페이지네이션)                       | 005, 011           | [ ]                    |
 | 5     | 018   | 상세 화면 API 연결 (수정·재촬영·삭제)                           | 007, 011, 015      | [ ]                    |
 | 5     | 019   | 내보내기 화면 API 연결                                          | 008, 011, 012      | [ ]                    |
@@ -62,7 +62,7 @@ Phase 1 기반 정리 ──▶ Phase 2 웹 화면 UI (더미 데이터) ──�
 - [x] Phase 1: 기반 정리 및 앱 골격 구축
 - [x] Phase 2: 웹 화면 UI 구현 - 더미 데이터 (API 호출 없음) - 완료
 - [x] Phase 3: 데이터 계층 및 API 구축 - 완료
-- [ ] Phase 4: 스캔·촬영·저장 기능 연결
+- [x] Phase 4: 스캔·촬영·저장 기능 연결 - 완료
 - [ ] Phase 5: 목록·상세·내보내기 기능 연결
 - [ ] Phase 6: 현장 적용
 
@@ -462,100 +462,106 @@ PRD §10의 나머지 항목(서버 OS/Node 설치 가능 여부·HTTPS 인증�
 
 Phase 2에서 만든 스캔 화면에 실제 QR 파서, 카메라, 이미지 리사이즈, 저장 API를 연결합니다.
 
-- **Task 013: QR 파서 모듈 구현 (교체 가능 구조 + 기본 규칙)**
+- **Task 013: QR 파서 모듈 구현 (교체 가능 구조 + 기본 규칙)** ✅ - 완료
+  - See: `/tasks/013-qr-parser.md`
   - 의존: Task 003 (Phase 2·3과 병행 가능)
   - 담당 파일: `src/lib/qr-parser.ts`, `scripts/check-qr-parser.ts`(검증 스크립트)
   - 구현 사항
-    - [ ] 시그니처: `parseQr(rawText: string): { productNo: string | null; lot: string | null; matchedRule: string | null }` 순수 함수 (F2-1)
-    - [ ] 규칙 인터페이스 `QrRule { name: string; parse(raw): { productNo, lot } | null }`와 규칙 배열 `QR_RULES`. 앞에서부터 시도해 처음 성공한 규칙 채택. 배열 앞/뒤에 추가하는 것만으로 우선순위 변경 가능 (F2-2)
-    - [ ] 기본 규칙 1 `key-value`: 줄바꿈/구분자로 나눈 `키:값`, `키=값`. 키 별칭(`PRODUCT`, `PRODUCT_NO`, `P/N`, `PN`, `LOT`, `LOT_NO`)을 대소문자 무시로 매칭
-    - [ ] 기본 규칙 2 `gs1-ai`: `(01)GTIN(10)LOT` 괄호 형식과 FNC1(`\x1d`) 구분 형식. GTIN → Product No, AI 10 → Lot
-    - [ ] 기본 규칙 3 `delimited`: `|`, `;`, `,` 구분 위치 분리. 인덱스는 설정 객체(`DELIMITED_RULE_CONFIG = { productNoIndex, lotIndex }`)로 분리
-    - [ ] 두 값 중 하나라도 비면 그 규칙은 실패로 봄. 결과 값은 trim
-    - [ ] P/NO 표기 정규화 `normalizeProductNo(value: string): string`를 `QR_RULES`와 분리된 후처리 함수로 둠. 대문자로 바꾼 값이 `^(\d{5})([A-Z0-9]{5})([A-Z0-9]+)$`(하이픈·괄호 없음)에 맞으면 `$1-$2($3)`로 바꾸고(예: `84739DC000G2E` → `84739-DC000(G2E)`), 이미 표 형식이거나 맞지 않으면 원본을 그대로 반환. 예외를 던지지 않음 (F2-5, Q15)
-    - [ ] 참고 라벨의 사람이 읽는 텍스트(줄바꿈 구분 `Lot` / `P/NO` / `HW 버전`, 예: `2608200040` / `84739DC000G2E` / `HW 1.00`)는 추정 규칙 후보로만 메모. 실제 원문 확보 후 Task 021에서 확정 (Q1)
-    - [ ] `scripts/check-qr-parser.ts`: 샘플 문자열과 기대값 표를 돌려 결과 출력 (Node 24 타입 스트리핑으로 `node scripts/check-qr-parser.ts` 실행)
+    - [x] 시그니처: `parseQr(rawText: string): { productNo: string | null; lot: string | null; matchedRule: string | null }` 순수 함수 (F2-1)
+    - [x] 규칙 인터페이스 `QrRule { name: string; parse(raw): { productNo, lot } | null }`와 규칙 배열 `QR_RULES`. 앞에서부터 시도해 처음 성공한 규칙 채택. 배열 앞/뒤에 추가하는 것만으로 우선순위 변경 가능 (F2-2)
+    - [x] 기본 규칙 1 `key-value`: 줄바꿈/구분자로 나눈 `키:값`, `키=값`. 키 별칭(`PRODUCT`, `PRODUCT_NO`, `P/N`, `PN`, `LOT`, `LOT_NO`)을 대소문자 무시로 매칭
+    - [x] 기본 규칙 2 `gs1-ai`: `(01)GTIN(10)LOT` 괄호 형식과 FNC1(`\x1d`) 구분 형식. GTIN → Product No, AI 10 → Lot
+    - [x] 기본 규칙 3 `delimited`: `|`, `;`, `,` 구분 위치 분리. 인덱스는 설정 객체(`DELIMITED_RULE_CONFIG = { productNoIndex, lotIndex }`)로 분리
+    - [x] 두 값 중 하나라도 비면 그 규칙은 실패로 봄. 결과 값은 trim
+    - [x] P/NO 표기 정규화 `normalizeProductNo(value: string): string`를 `QR_RULES`와 분리된 후처리 함수로 둠. 대문자로 바꾼 값이 `^(\d{5})([A-Z0-9]{5})([A-Z0-9]+)$`(하이픈·괄호 없음)에 맞으면 `$1-$2($3)`로 바꾸고(예: `84739DC000G2E` → `84739-DC000(G2E)`), 이미 표 형식이거나 맞지 않으면 원본을 그대로 반환. 예외를 던지지 않음 (F2-5, Q15)
+    - [x] 참고 라벨의 사람이 읽는 텍스트(줄바꿈 구분 `Lot` / `P/NO` / `HW 버전`, 예: `2608200040` / `84739DC000G2E` / `HW 1.00`)는 추정 규칙 후보로만 메모. 실제 원문 확보 후 Task 021에서 확정 (Q1)
+    - [x] `scripts/check-qr-parser.ts`: 샘플 문자열과 기대값 표를 돌려 결과 출력 (Node 24 타입 스트리핑으로 `node scripts/check-qr-parser.ts` 실행)
   - 완료 조건
-    - [ ] 3개 규칙의 대표 샘플과 모든 규칙이 실패하는 샘플(빈 문자열, 임의 URL)의 결과가 기대값과 같다
-    - [ ] `normalizeProductNo` 샘플 4종이 기대값과 같다: `84739DC000G2E` → `84739-DC000(G2E)`, `84739-DC000(G2E)` → 그대로, `84739dc000g2e` → `84739-DC000(G2E)`, `ABC-123` → 그대로 (F2-5)
-    - [ ] 파서가 브라우저·서버 어느 쪽 API에도 의존하지 않는다
-  - 테스트 체크리스트
-    - [ ] 검증 스크립트 전 항목 통과
-    - [ ] Playwright MCP로 `/scan` 직접 입력의 원문 입력란에 규칙별 샘플을 넣어 자동 입력 결과 확인 (Task 016 연결 후)
+    - [x] 3개 규칙의 대표 샘플과 모든 규칙이 실패하는 샘플(빈 문자열, 임의 URL)의 결과가 기대값과 같다
+    - [x] `normalizeProductNo` 샘플 4종이 기대값과 같다: `84739DC000G2E` → `84739-DC000(G2E)`, `84739-DC000(G2E)` → 그대로, `84739dc000g2e` → `84739-DC000(G2E)`, `ABC-123` → 그대로 (F2-5)
+    - [x] 파서가 브라우저·서버 어느 쪽 API에도 의존하지 않는다
+  - 테스트 체크리스트: `scripts/check-qr-parser.ts` 16/16 통과, Playwright MCP로 `/scan` 직접 입력 원문란에 key-value·GS1 괄호형·delimited 샘플을 넣어 자동 입력 결과 확인 — 전 항목 통과, 상세 표는 `tasks/013-qr-parser.md` 참고
+    - [x] 검증 스크립트 전 항목 통과
+    - [x] Playwright MCP로 `/scan` 직접 입력의 원문 입력란에 규칙별 샘플을 넣어 자동 입력 결과 확인 (Task 016 연결 후)
   - 확인 필요: Q1 (실제 샘플 확보 후 Task 021에서 전용 규칙을 배열 맨 앞에 추가), Q15
 
-- **Task 014: QR 스캐너 카메라 로직 구현 (권한·미지원 처리)**
+- **Task 014: QR 스캐너 카메라 로직 구현 (권한·미지원 처리)** ✅ - 완료
+  - See: `/tasks/014-qr-scanner.md`
   - 의존: Task 006
   - 담당 파일: `src/components/scanner/qr-scanner.tsx`(`'use client'`), `src/lib/camera-support.ts`, `src/lib/feedback.ts`, `src/app/scan/_components/scanner-step.tsx`(연결)
   - 구현 사항
-    - [ ] `camera-support.ts`: `window.isSecureContext && !!navigator.mediaDevices?.getUserMedia`로 지원 여부 판단. 미지원이면 카메라를 시도하지 않고 바로 직접 입력으로 전환 (F1-4)
-    - [ ] `@zxing/browser`의 `BrowserMultiFormatReader`로 `facingMode: 'environment'` 스트림 디코딩, `scanner-view`의 영상 자리에 연결. 힌트(`DecodeHintType.POSSIBLE_FORMATS`)는 QR_CODE, DATA_MATRIX + CODE_128, EAN_13, CODE_39. 참고 라벨의 2D 코드가 Data Matrix이므로 반드시 포함 (F1-1, Q14)
-    - [ ] 작은 Data Matrix 인식을 위해 `decodeFromVideoDevice` 대신 `decodeFromConstraints`로 `video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }`를 직접 지정. `DecodeHintType.TRY_HARDER`는 1D 리더 순서가 밀리는 부작용이 있어 Task 022 실기기 측정 후 적용 여부 결정
-    - [ ] `<video playsInline muted autoPlay>`로 iOS Safari 인라인 재생 보장, 언마운트·단계 이동 시 `controls.stop()`으로 카메라 트랙 해제
-    - [ ] 권한 거부(`NotAllowedError`)와 카메라 없음(`NotFoundError`)은 `camera-unavailable` 화면으로 전환 (F1-3)
-    - [ ] 인식 시 `onDetected(rawText)`를 1회만 호출하고 디코딩 일시 정지. `feedback.ts`에서 `navigator.vibrate(100)`(가능 기기) 또는 Web Audio 효과음. 효과음은 "스캔 시작" 탭에서 AudioContext를 미리 활성화 (F1-2)
-    - [ ] 스캐너는 `next/dynamic`(`ssr: false`)으로 불러와 서버 렌더링 시 브라우저 API를 참조하지 않게 함
+    - [x] `camera-support.ts`: `window.isSecureContext && !!navigator.mediaDevices?.getUserMedia`로 지원 여부 판단. 미지원이면 카메라를 시도하지 않고 바로 직접 입력으로 전환 (F1-4)
+    - [x] `@zxing/browser`의 `BrowserMultiFormatReader`로 `facingMode: 'environment'` 스트림 디코딩, `scanner-view`의 영상 자리에 연결. 힌트(`DecodeHintType.POSSIBLE_FORMATS`)는 QR_CODE, DATA_MATRIX + CODE_128, EAN_13, CODE_39. 참고 라벨의 2D 코드가 Data Matrix이므로 반드시 포함 (F1-1, Q14)
+    - [x] 작은 Data Matrix 인식을 위해 `decodeFromVideoDevice` 대신 `decodeFromConstraints`로 `video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }`를 직접 지정. `DecodeHintType.TRY_HARDER`는 1D 리더 순서가 밀리는 부작용이 있어 Task 022 실기기 측정 후 적용 여부 결정
+    - [x] `<video playsInline muted autoPlay>`로 iOS Safari 인라인 재생 보장, 언마운트·단계 이동 시 `controls.stop()`으로 카메라 트랙 해제
+    - [x] 권한 거부(`NotAllowedError`)와 카메라 없음(`NotFoundError`)은 `camera-unavailable` 화면으로 전환 (F1-3)
+    - [x] 인식 시 `onDetected(rawText)`를 1회만 호출하고 디코딩 일시 정지. `feedback.ts`에서 `navigator.vibrate(100)`(가능 기기) 또는 Web Audio 효과음. 효과음은 "스캔 시작" 탭에서 AudioContext를 미리 활성화 (F1-2)
+    - [x] 스캐너는 `next/dynamic`(`ssr: false`)으로 불러와 서버 렌더링 시 브라우저 API를 참조하지 않게 함
   - 완료 조건
-    - [ ] 권한 거부 시 안내와 직접 입력 버튼이 보인다 (F1-3, S-스캔-1)
-    - [ ] 비-HTTPS 접속 시 권한 요청 없이 직접 입력 화면이 바로 보인다 (F1-4, S-스캔-2)
-    - [ ] 인식 후 1초 이내에 원문이 표시된다 (F1-2, 실기기 확인은 Task 022)
-  - 테스트 체크리스트 (Playwright MCP)
-    - [ ] 카메라 권한을 주지 않은 컨텍스트에서 `/scan` 진입 → 안내 문구·직접 입력 버튼 확인
-    - [ ] `browser_evaluate`로 `navigator.mediaDevices`를 제거한 상태 → 즉시 직접 입력 전환 확인
-    - [ ] (선택) Chromium 가짜 카메라(`--use-fake-device-for-media-stream`, `--use-file-for-fake-video-capture=<QR·Data Matrix 영상.y4m>`)로 인식 → 원문 표시 확인
+    - [x] 권한 거부 시 안내와 직접 입력 버튼이 보인다 (F1-3, S-스캔-1) — 문구·버튼 UI는 확인, 실제 `NotAllowedError` 트리거 재현은 Task 022 실기기 확인으로 이월
+    - [x] 비-HTTPS 접속 시 권한 요청 없이 직접 입력 화면이 바로 보인다 (F1-4, S-스캔-2)
+    - [ ] 인식 후 1초 이내에 원문이 표시된다 (F1-2) — **Task 022 실기기 확인으로 이월** (테스트 환경에 카메라 장치가 없어 측정 불가)
+  - 테스트 체크리스트 (Playwright MCP) — 상세 표는 `tasks/014-qr-scanner.md` 참고
+    - [x] 카메라 권한을 주지 않은/장치가 없는 컨텍스트에서 `/scan` 진입 → 안내 문구·직접 입력 버튼 확인 (테스트 환경에는 카메라 장치 자체가 없어 실제로는 `not-found` 화면이 나왔고, `denied` 문구·버튼은 `?preview=denied`로 별도 확인함)
+    - [x] `browser_evaluate`로 `navigator.mediaDevices`를 제거한 상태 → 즉시 직접 입력 전환 확인
+    - [ ] (선택) Chromium 가짜 카메라(`--use-fake-device-for-media-stream`, `--use-file-for-fake-video-capture=<QR·Data Matrix 영상.y4m>`)로 인식 → 원문 표시 확인 — **생략: Playwright MCP는 브라우저 실행 옵션을 지정할 수 없어 적용 불가. Task 022 실기기 확인으로 이월**
   - 확인 필요: Q7, Q14
 
-- **Task 015: 사진 리사이즈 로직 구현 및 사진 슬롯 연결**
+- **Task 015: 사진 리사이즈 로직 구현 및 사진 슬롯 연결** ✅ - 완료
+  - See: `/tasks/015-image-resize.md`
   - 의존: Task 006
   - 담당 파일: `src/lib/image-resize.ts`, `src/components/records/photo-slot.tsx`(연결)
   - 구현 사항
-    - [ ] `photo-slot`의 `<input type="file" accept="image/*" capture="environment">`에서 파일을 받으면 리사이즈 후 미리보기 표시 (PRD F3)
-    - [ ] `image-resize.ts`: `createImageBitmap`(실패 시 `HTMLImageElement` 대체) → `<canvas>`에 긴 변 1600px 이하로 그림 → `canvas.toBlob('image/jpeg', 0.8)`. 결과 `File`은 항상 `image/jpeg` (F3-2)
-    - [ ] EXIF 회전 정보를 픽셀에 반영: `createImageBitmap(file, { imageOrientation: 'from-image' })`로 디코딩해 항상 정방향 JPEG로 저장. Task 012가 JPEG SOF 헤더의 가로·세로로 Excel 사진 비율을 계산하므로 이 전제가 필요 (PRD §8, F5-7)
-    - [ ] 리사이즈 전후 크기·해상도를 개발 모드에서 `console.debug`로 출력 (F3-1)
-    - [ ] 디코딩 실패(일부 HEIC 등) 시 슬롯 오류 상태로 전환하고 슬롯 비움 (F3-3, PRD §8)
-    - [ ] 재촬영 시 이전 미리보기(`URL.revokeObjectURL`)와 파일을 교체해 슬롯당 1장 유지 (Q5)
+    - [x] `photo-slot`의 `<input type="file" accept="image/*" capture="environment">`에서 파일을 받으면 리사이즈 후 미리보기 표시 (PRD F3)
+    - [x] `image-resize.ts`: `createImageBitmap`(실패 시 `HTMLImageElement` 대체) → `<canvas>`에 긴 변 1600px 이하로 그림 → `canvas.toBlob('image/jpeg', 0.8)`. 결과 `File`은 항상 `image/jpeg` (F3-2)
+    - [x] EXIF 회전 정보를 픽셀에 반영: `createImageBitmap(file, { imageOrientation: 'from-image' })`로 디코딩해 항상 정방향 JPEG로 저장. Task 012가 JPEG SOF 헤더의 가로·세로로 Excel 사진 비율을 계산하므로 이 전제가 필요 (PRD §8, F5-7)
+    - [x] 리사이즈 전후 크기·해상도를 개발 모드에서 `console.debug`로 출력 (F3-1)
+    - [x] 디코딩 실패(일부 HEIC 등) 시 슬롯 오류 상태로 전환하고 슬롯 비움 (F3-3, PRD §8)
+    - [x] 재촬영 시 이전 미리보기(`URL.revokeObjectURL`)와 파일을 교체해 슬롯당 1장 유지 (Q5)
   - 완료 조건
-    - [ ] 사진을 고르면 바로 미리보기가 보인다 (F3-1)
-    - [ ] 4000x3000 JPEG와 PNG 모두 결과가 `image/jpeg`이고 긴 변이 1600px 이하다 (F3-2)
-    - [ ] 디코딩할 수 없는 파일을 고르면 오류 문구가 보이고 슬롯이 비어 있다 (F3-3, S-스캔-4)
-    - [ ] 세로로 찍어 EXIF 회전 정보가 있는 사진도 결과 JPEG의 가로·세로가 화면에 보이는 방향과 같다 (Task 012 SOF 크기의 전제)
-  - 테스트 체크리스트 (Playwright MCP)
-    - [ ] `browser_file_upload`로 큰 JPEG·PNG 업로드 → 미리보기 표시, `browser_console_messages`로 리사이즈 결과(타입·크기) 확인
-    - [ ] 손상 이미지/HEIC 업로드 → 오류 문구, 슬롯 비어 있음
-    - [ ] 같은 슬롯에 두 번 업로드 → 미리보기 1장만 유지
+    - [x] 사진을 고르면 바로 미리보기가 보인다 (F3-1)
+    - [x] 4000x3000 JPEG와 PNG 모두 결과가 `image/jpeg`이고 긴 변이 1600px 이하다 (F3-2)
+    - [x] 디코딩할 수 없는 파일을 고르면 오류 문구가 보이고 슬롯이 비어 있다 (F3-3, S-스캔-4)
+    - [x] 세로로 찍어 EXIF 회전 정보가 있는 사진도 결과 JPEG의 가로·세로가 화면에 보이는 방향과 같다 (Task 012 SOF 크기의 전제)
+  - 테스트 체크리스트 (Playwright MCP) — 상세 표는 `tasks/015-image-resize.md` 참고
+    - [x] `browser_file_upload`로 큰 JPEG·PNG 업로드 → 미리보기 표시, `browser_console_messages`로 리사이즈 결과(타입·크기) 확인 (4000x3000 JPEG/PNG 모두 1600x1200, `image/jpeg`)
+    - [x] 손상 이미지(HEIC 대신 `.jpg` 확장자에 임의 바이트로 대체) 업로드 → 오류 문구, 슬롯 비어 있음
+    - [x] 같은 슬롯에 두 번 업로드 → 미리보기 1장만 유지 (EXIF 회전 사진 포함, `readJpegSize`로 저장 파일 방향도 확인)
 
-- **Task 016: `/scan` 저장 흐름 연결**
+- **Task 016: `/scan` 저장 흐름 연결** ✅ - 완료
+  - See: `/tasks/016-scan-save-flow.md`
   - 의존: Task 011, 013, 014, 015
   - 담당 파일: `src/app/scan/_components/scan-flow.tsx`, `src/app/scan/_components/confirm-step.tsx`, `src/app/scan/_components/photo-step.tsx`
   - 구현 사항
-    - [ ] 인식 결과를 `parseQr`에 넣어 Product No/Lot 자동 입력, 원문은 폼 값과 별도로 보관해 수정 불가 (F1-5, F2-4)
-    - [ ] 자동 입력하는 Product No에 `normalizeProductNo`를 적용해 표 형식(`84739-DC000(G2E)`)으로 채움. `raw_text`는 바꾸지 않고, 사용자는 계속 수정 가능 (F2-5, Q15)
-    - [ ] 파싱 실패 시 S-스캔-3 상태로 전환 (F2-3)
-    - [ ] 직접 입력 모드에서 원문이 비어 있으면 `[직접입력]` 저장 (Q7)
-    - [ ] 사진 누락 시 확인 모달 후 저장 (F3-4)
-    - [ ] `records-client.createRecord`로 multipart 전송, 저장 중 중복 제출 방지
-    - [ ] 성공 시 "저장되었습니다" 토스트, `duplicate: true`면 별도 경고 토스트 (F4-1, Q4)
-    - [ ] 실패 시 에러 토스트 + **다시 시도**, 입력값·사진 유지. 400이면 `fields`를 입력 필드 오류로 표시, 413/415는 해당 사진 슬롯 오류로 표시
-    - [ ] **다음 스캔**은 상태를 초기화하고 카메라를 다시 시작
+    - [x] 인식 결과를 `parseQr`에 넣어 Product No/Lot 자동 입력, 원문은 폼 값과 별도로 보관해 수정 불가 (F1-5, F2-4)
+    - [x] 자동 입력하는 Product No에 `normalizeProductNo`를 적용해 표 형식(`84739-DC000(G2E)`)으로 채움. `raw_text`는 바꾸지 않고, 사용자는 계속 수정 가능 (F2-5, Q15)
+    - [x] 파싱 실패 시 S-스캔-3 상태로 전환 (F2-3)
+    - [x] 직접 입력 모드에서 원문이 비어 있으면 `[직접입력]` 저장 (Q7)
+    - [x] 사진 누락 시 확인 모달 후 저장 (F3-4)
+    - [x] `records-client.createRecord`로 multipart 전송, 저장 중 중복 제출 방지
+    - [x] 성공 시 "저장되었습니다" 토스트, `duplicate: true`면 별도 경고 토스트 (F4-1, Q4)
+    - [x] 실패 시 에러 토스트 + **다시 시도**, 입력값·사진 유지. 400이면 `fields`를 입력 필드 오류로 표시, 413/415는 해당 사진 슬롯 오류로 표시 (`record-form.ts`가 413/415 응답에 `fields: { barcode_photo | product_photo }`를 담도록 확장)
+    - [x] **다음 스캔**은 상태를 초기화하고 카메라를 다시 시작
   - 완료 조건
-    - [ ] `/scan`에서 스캔(또는 직접 입력)부터 저장까지 페이지 이동 없이 끝나고, 저장된 기록이 `GET /api/records`에 나온다
-    - [ ] F1-5, F2-3, F2-4, F2-5, F3-4, F4-1과 S-스캔-3, S-스캔-5, S-스캔-6, S-스캔-7을 실제 API로 만족한다
-  - 테스트 체크리스트 (Playwright MCP, 직접 입력 경로 기준)
-    - [ ] 직접 입력 → 값 입력 → 사진 2장 업로드 → 저장 → 성공 토스트, 완료 화면
-    - [ ] 사진 없이 저장 → 확인 모달 → 취소 시 요청 없음, 확인 시 저장
-    - [ ] 같은 Product No+Lot 두 번 저장 → 두 번째에 성공 토스트와 중복 경고 토스트
-    - [ ] `browser_evaluate`로 `fetch`를 가로채 500 응답 → 에러 토스트, 다시 시도, 입력값 유지
-    - [ ] 필수값을 비운 채 저장 → 필드 오류, 요청이 나가지 않음
-    - [ ] 다음 스캔 → 모든 입력과 사진 초기화
-    - [ ] 직접 입력 원문란에 `84739DC000G2E`가 들어간 샘플 → Product No가 `84739-DC000(G2E)`로 자동 입력, 저장된 `raw_text`는 원문 그대로
+    - [x] `/scan`에서 스캔(또는 직접 입력)부터 저장까지 페이지 이동 없이 끝나고, 저장된 기록이 `GET /api/records`에 나온다
+    - [x] F1-5, F2-3, F2-4, F2-5, F3-4, F4-1과 S-스캔-3, S-스캔-5, S-스캔-6, S-스캔-7을 실제 API로 만족한다
+  - 테스트 체크리스트 (Playwright MCP, 직접 입력 경로 기준) — 상세 표는 `tasks/016-scan-save-flow.md` 참고
+    - [x] 직접 입력 → 값 입력 → 사진 2장 업로드 → 저장 → 성공 토스트, 완료 화면
+    - [x] 사진 없이 저장 → 확인 모달 → 취소 시 요청 없음, 확인 시 저장
+    - [x] 같은 Product No+Lot 두 번 저장 → 두 번째에 성공 토스트와 중복 경고 토스트
+    - [x] `browser_evaluate`로 `fetch`를 가로채 500 응답 → 에러 토스트, 다시 시도, 입력값 유지
+    - [x] 필수값을 비운 채 저장 → 필드 오류, 요청이 나가지 않음
+    - [x] 다음 스캔 → 모든 입력과 사진 초기화
+    - [x] 직접 입력 원문란에 `84739DC000G2E`가 들어간 샘플 → Product No가 `84739-DC000(G2E)`로 자동 입력, 저장된 `raw_text`는 원문 그대로
+    - [x] (추가) 413/415 오류 시 해당 사진 슬롯에 오류 표시(가로챈 응답 + curl로 실제 API 확인), 400 오류 시 confirm 단계 필드 오류 표시
+    - [x] (회귀 수정 확인) `?preview=save-error`·`?preview=duplicate`는 더미 사진이 보이면 모달 없이 바로 저장 시도, `?preview=no-photo`는 여전히 모달 표시
   - 확인 필요: Q1, Q4, Q7, Q15
 
 **Phase 4 완료 조건**
 
-- [ ] `npm run check-all` 통과
-- [ ] `npm run build` 통과
-- [ ] Task 013~016 테스트 체크리스트 전부 통과
+- [x] `npm run check-all` 통과
+- [x] `npm run build` 통과 (`data/` 미생성 확인)
+- [x] Task 013~016 테스트 체크리스트 전부 통과 (실기기에서만 확인 가능한 항목—Task 014의 인식 1초 이내·가짜 카메라 인식—은 Task 022 실기기 확인으로 이월, 각 Task 문서에 사실대로 기록)
 
 ### Phase 5: 목록·상세·내보내기 기능 연결
 

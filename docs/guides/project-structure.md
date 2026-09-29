@@ -96,11 +96,13 @@ src/components/
 │   └── confirm-dialog.tsx # 제어형 확인 모달 (AlertDialog 기반)
 ├── scanner/           # 📷 스캐너 (스캔 화면)
 │   ├── scanner-view.tsx       # 카메라 영역 자리 + 조준 가이드
-│   └── camera-unavailable.tsx # 카메라 권한 거부/미지원 안내
+│   ├── camera-unavailable.tsx # 카메라 권한 거부/미지원/장치 없음(`'not-found'`) 안내
+│   └── qr-scanner.tsx         # `'use client'`, `@zxing/browser` 실시간 스캐너 (Task 014, `next/dynamic(ssr:false)`로만 로드)
 ├── records/           # 🗂️ 기록 공용 (스캔·상세 화면)
-│   ├── record-fields.tsx # Product No/Lot/메모(+QR 원문) 입력 필드 (useFormContext)
-│   ├── photo-slot.tsx    # 사진 슬롯 (빈 상태·미리보기·오류)
-│   └── raw-text-box.tsx  # QR 원문 읽기 전용 박스
+│   ├── record-fields.tsx   # Product No/Lot/메모(+QR 원문) 입력 필드 (useFormContext, `onRawTextBlur` 지원)
+│   ├── photo-slot.tsx      # 사진 슬롯 (빈 상태·미리보기·오류, `onFileSelected`·`busy` 지원)
+│   ├── use-photo-capture.ts # 사진 슬롯 1개의 선택·리사이즈·미리보기 상태 관리 훅 (Task 015)
+│   └── raw-text-box.tsx    # QR 원문 읽기 전용 박스
 ├── providers/         # 🔧 Context 프로바이더
 │   └── theme-provider.tsx
 └── theme-toggle.tsx   # 🌓 테마 토글
@@ -122,7 +124,7 @@ src/components/
    - `navigation/`: 하단 탭 바 등 내비게이션
    - `states/`: 로딩·빈 상태·오류 상태 컴포넌트
    - `dialogs/`: 확인 모달 등 대화상자
-   - `scanner/`: 카메라 영역·권한 안내 (실제 QR 스캐너 `qr-scanner.tsx`는 Task 014에서 `'use client'`로 추가)
+   - `scanner/`: 카메라 영역·권한 안내·실제 QR 스캐너(`qr-scanner.tsx`, Task 014)
    - `records/`: 입력 필드·사진 슬롯·원문 박스 등 기록 관련 공용 컴포넌트
 
 4. **라우트 전용 컴포넌트**: 한 화면에서만 쓰면 해당 라우트의 `_components/`에 둔다 (홈 전용은 `src/app/_components/`)
@@ -149,6 +151,10 @@ src/lib/
 ├── record-form.ts     # 📝 multipart 공통 헬퍼 (필드·사진 분리, 사전 검사, 저장, 롤백)
 ├── jpeg-size.ts        # 📐 JPEG SOF 마커에서 가로·세로 판독 (의존성 없는 순수 함수, `server-only` 아님)
 ├── excel-export.ts    # 📊 Excel 워크북 생성 (`server-only`, exceljs로 8컬럼 + 사진 썸네일)
+├── qr-parser.ts       # 🔍 QR 파서 (Task 013, 브라우저·Node 공용 순수 함수: parseQr·QR_RULES·normalizeProductNo)
+├── camera-support.ts  # 📷 카메라(getUserMedia) 사용 가능 여부 판단 (Task 014, SSR에서 항상 false)
+├── feedback.ts        # 🔔 QR 인식 피드백(진동·효과음) 유틸 (Task 014, unlockAudio·playScanFeedback)
+├── image-resize.ts    # 🖼️ 클라이언트 사진 리사이즈(긴 변 1600px·JPEG 0.8, EXIF 회전 반영) (Task 015)
 ├── types/             # 📐 공통 타입
 │   ├── record.ts      # RecordRow, RecordDto, CreateRecordResponse, RecordListResponse
 │   └── api.ts         # ApiErrorCode, ApiErrorBody
@@ -160,13 +166,6 @@ src/lib/
 │   └── records-client.ts # createRecord·listRecords·getRecord·updateRecord·deleteRecord·ApiError·photoUrl
 └── mock/              # 🧪 Phase 2 화면용 더미 데이터
     └── records.ts
-```
-
-**📚 Phase 4 이후 추가 예정:**
-
-```
-src/lib/
-└── qr-parser.ts       # QR 파서 (브라우저·Node 공용 순수 함수)
 ```
 
 ### 기타 폴더
@@ -182,7 +181,8 @@ scripts/               # 🔍 Node 24 타입 스트리핑 검증 스크립트 (D
 ├── check-jpeg-size.ts      # jpeg-size.ts 검증 (SOF 판독·손상 버퍼 null 처리)
 ├── check-excel-export.ts   # excel-export.ts 검증 (행 수·No 순번·헤더 스타일·사진 비율)
 ├── check-export.ts         # GET /api/export 응답 xlsx를 exceljs로 재읽기해 검증
-└── seed-export-test.ts     # 내보내기 테스트용 DB 직접 시드 (many/boundary/lots 서브커맨드)
+├── seed-export-test.ts     # 내보내기 테스트용 DB 직접 시드 (many/boundary/lots 서브커맨드)
+└── check-qr-parser.ts      # qr-parser.ts 검증 (규칙별 대표 샘플·별칭·실패 케이스·normalizeProductNo, DATA_DIR 불필요)
 tasks/                 # 📋 Task 작업 파일 (000-sample.md 템플릿)
 ```
 
@@ -191,6 +191,7 @@ tasks/                 # 📋 Task 작업 파일 (000-sample.md 템플릿)
 ```bash
 node --import ./scripts/register-alias.mjs scripts/check-schemas.ts
 TZ=UTC node --import ./scripts/register-alias.mjs scripts/check-time.ts
+node --import ./scripts/register-alias.mjs scripts/check-qr-parser.ts
 
 # DATA_DIR가 필요한 스크립트(반드시 스크래치 임시 폴더로 지정, 실제 data/는 절대 지정하지 않음)
 DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-repo.ts
