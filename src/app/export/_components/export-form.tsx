@@ -8,6 +8,8 @@ import { ConfirmDialog } from '@/components/dialogs/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { countRecordsInRange, downloadExport } from '@/lib/api/export-client'
+import { ApiError } from '@/lib/api/records-client'
 import { EXPORT_HARD_LIMIT, EXPORT_WARN_THRESHOLD } from '@/lib/constants'
 import { MOCK_RECORDS } from '@/lib/mock/records'
 import { exportQuerySchema } from '@/lib/schemas/export'
@@ -69,7 +71,7 @@ function createDummyCheckCount(preview: ExportPreview | null) {
   }
 }
 
-// 더미 다운로드. Task 019에서 GET /api/export 파일 다운로드로 교체
+// 더미 다운로드 (preview 모드 전용). preview가 없으면 downloadExport(GET /api/export)를 쓴다
 function createDummyDownload(preview: ExportPreview | null) {
   return async (): Promise<void> => {
     await wait(1500)
@@ -79,9 +81,10 @@ function createDummyDownload(preview: ExportPreview | null) {
 
 interface ExportFormProps {
   preview: ExportPreview | null
-  // 지정하지 않으면 더미 동작을 쓴다 (Task 019에서 API 연결)
+  // 지정하지 않으면 preview 여부에 따라 더미 동작 또는 실제 API(export-client)를 쓴다
   onCheckCount?: (range: DateRange) => Promise<number>
-  onDownload?: (range: DateRange) => Promise<void>
+  // 성공 시 실제 파일명을 반환한다(더미는 void)
+  onDownload?: (range: DateRange) => Promise<string | void>
 }
 
 export function ExportForm({
@@ -99,9 +102,14 @@ export function ExportForm({
   const [count, setCount] = useState<number>()
   const [warnOpen, setWarnOpen] = useState(false)
   const [checkCount] = useState(
-    () => onCheckCount ?? createDummyCheckCount(preview)
+    () =>
+      onCheckCount ??
+      (preview ? createDummyCheckCount(preview) : countRecordsInRange)
   )
-  const [download] = useState(() => onDownload ?? createDummyDownload(preview))
+  const [download] = useState(
+    () =>
+      onDownload ?? (preview ? createDummyDownload(preview) : downloadExport)
+  )
 
   const filled = Boolean(range.from && range.to)
   const parsed = exportQuerySchema.safeParse(range)
@@ -118,12 +126,17 @@ export function ExportForm({
   async function runDownload() {
     setStatus('generating')
     try {
-      await download(range)
+      const filename = await download(range)
       setStatus('idle')
       toast.success('엑셀 파일이 준비되었습니다', {
-        description: `records_${range.from}_${range.to}.xlsx`,
+        description: filename || `records_${range.from}_${range.to}.xlsx`,
       })
-    } catch {
+    } catch (error) {
+      // 클라이언트 건수 확인을 건너뛰었거나 그 사이 건수가 늘어난 경우를 대비한 방어 처리
+      if (error instanceof ApiError && error.code === 'TOO_MANY_RECORDS') {
+        setStatus('over-limit')
+        return
+      }
       setStatus('idle')
       toast.error('엑셀 생성에 실패했습니다', {
         action: { label: '다시 시도', onClick: () => void runDownload() },
