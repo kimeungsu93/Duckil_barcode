@@ -11,6 +11,7 @@ import {
 import { RecordSearch } from './record-search'
 import { Button } from '@/components/ui/button'
 import { LIST_PAGE_SIZE } from '@/lib/constants'
+import { unlockAudio } from '@/lib/feedback'
 import { MOCK_RECORDS, mockPhotoUrl } from '@/lib/mock/records'
 import type { RecordDto } from '@/lib/types/record'
 
@@ -85,7 +86,8 @@ export function HomeView({ preview, initialQuery }: HomeViewProps) {
     <div className="flex flex-col gap-4">
       {!isEmpty && (
         <Button asChild size="touch" className="w-full">
-          <Link href="/scan">
+          {/* 스캔 화면 진입 전에 효과음을 미리 활성화해둔다 (PRD F1-2) */}
+          <Link href="/scan" onClick={() => unlockAudio()}>
             <ScanLine />
             스캔 시작
           </Link>

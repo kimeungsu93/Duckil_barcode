@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/states/empty-state'
 import { ErrorState } from '@/components/states/error-state'
 import { ListSkeleton } from '@/components/states/list-skeleton'
 import { Button } from '@/components/ui/button'
+import { unlockAudio } from '@/lib/feedback'
 import type { RecordDto } from '@/lib/types/record'
 
 export type RecordListStatus = 'loading' | 'ready' | 'error'
@@ -50,7 +51,8 @@ export function RecordList({
         description="제품 코드를 스캔해 첫 기록을 남겨보세요"
         action={
           <Button asChild size="touch" className="w-full">
-            <Link href="/scan">
+            {/* 스캔 화면 진입 전에 효과음을 미리 활성화해둔다 (PRD F1-2) */}
+            <Link href="/scan" onClick={() => unlockAudio()}>
               <ScanLine />
               스캔 시작
             </Link>

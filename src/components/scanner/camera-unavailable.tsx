@@ -1,7 +1,7 @@
 import { CameraOff, Keyboard } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export type CameraUnavailableReason = 'denied' | 'unsupported'
+export type CameraUnavailableReason = 'denied' | 'unsupported' | 'not-found'
 
 interface CameraUnavailableProps {
   reason: CameraUnavailableReason
@@ -22,6 +22,11 @@ const MESSAGES: Record<
   unsupported: {
     title: '이 브라우저에서는 카메라를 사용할 수 없습니다',
     description: '제품 정보를 직접 입력해주세요',
+  },
+  // 카메라 장치가 없거나(NotFoundError) 요청한 제약을 만족하는 장치가 없을 때(OverconstrainedError)
+  'not-found': {
+    title: '카메라를 찾을 수 없습니다',
+    description: '사용 가능한 카메라가 없습니다. 제품 정보를 직접 입력해주세요',
   },
 }
 
