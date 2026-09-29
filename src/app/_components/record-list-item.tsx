@@ -18,12 +18,14 @@ export function RecordListItem({ record, thumbnailUrl }: RecordListItemProps) {
       <div className="bg-muted relative h-14 w-20 shrink-0 overflow-hidden rounded-md">
         {thumbnailUrl ? (
           // 사진 경로가 더미(/mock)·API(/api/photos)·blob으로 바뀌므로 최적화를 끈다. 가로형 썸네일은 식별용이라 cover 유지
+          // next/image는 fill 사용 시에도 기본값이 lazy loading이지만, 목록 썸네일임을 명시적으로 드러내기 위해 loading='lazy'를 직접 지정한다
           <Image
             src={thumbnailUrl}
             alt=""
             fill
             sizes="80px"
             unoptimized
+            loading="lazy"
             className="object-cover"
           />
         ) : (
