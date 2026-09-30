@@ -1,0 +1,30 @@
+[
+  {
+    "id": "example-01",
+    "labelType": "datamatrix",
+    "source": "예시(실제 원문 아님): 참고 라벨 형식을 구분자로 이어 붙임",
+    "raw": "84739DC000G2E|2608200040",
+    "expected": { "productNo": "84739-DC000(G2E)", "lot": "2608200040" }
+  },
+  {
+    "id": "example-02",
+    "labelType": "qr",
+    "source": "예시(실제 원문 아님): 키:값 형식(P/N 별칭)",
+    "raw": "P/N:84739DC000G2E;LOT:2608200041",
+    "expected": { "productNo": "84739-DC000(G2E)", "lot": "2608200041" }
+  },
+  {
+    "id": "example-03",
+    "labelType": "datamatrix",
+    "source": "예시(실제 원문 아님): 이미 표 형식인 품번, 줄바꿈 구분",
+    "raw": "PRODUCT=84739-DC000(G2E)\nLOT=2608200042",
+    "expected": { "productNo": "84739-DC000(G2E)", "lot": "2608200042" }
+  },
+  {
+    "id": "example-04",
+    "labelType": "code128",
+    "source": "예시(실제 원문 아님): LOT_NO 별칭, 소문자 키",
+    "raw": "product_no=84739DC000G2E, lot_no=2608200043",
+    "expected": { "productNo": "84739-DC000(G2E)", "lot": "2608200043" }
+  }
+]

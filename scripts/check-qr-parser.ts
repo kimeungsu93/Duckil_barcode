@@ -1,5 +1,7 @@
 // QR 파서(qr-parser.ts) 규칙별 샘플·기대값 확인
 // 실행: node --import ./scripts/register-alias.mjs scripts/check-qr-parser.ts
+// 실제 라벨 샘플 성공률: ... scripts/check-qr-parser.ts --samples tests/fixtures/qr-samples.json
+import { readFileSync } from 'node:fs'
 import {
   normalizeProductNo,
   parseQr,
@@ -97,4 +99,79 @@ for (const [name, input, expected] of normalizeCases) {
 }
 
 console.log(failed === 0 ? '\n모든 검사 통과' : `\n실패 ${failed}건`)
-process.exit(failed === 0 ? 0 : 1)
+
+// --- 실제 라벨 샘플 성공률 측정 (ROADMAP Task 021, PRD §9 목표 95%) ---
+// --samples <경로>를 주면 샘플 파일의 원문을 화면과 같은 방식(parseQr → normalizeProductNo)으로
+// 처리해 기대값과 비교한다. 형식은 tests/fixtures/qr-samples.example.json 참고
+const AUTO_FILL_TARGET_RATE = 95
+
+interface QrSample {
+  id: string
+  // 라벨 코드 종류 (datamatrix, qr, code128 등, ROADMAP Q14)
+  labelType: string
+  // 거래처·라벨 종류 등 출처 메모
+  source?: string
+  raw: string
+  // 화면에 자동 입력되어야 하는 값 (Product No는 표 형식 변환 후 값)
+  expected: { productNo: string; lot: string }
+}
+
+function readSamples(filePath: string): QrSample[] {
+  const data: unknown = JSON.parse(readFileSync(filePath, 'utf8'))
+  if (!Array.isArray(data)) throw new Error('샘플 파일은 배열이어야 합니다')
+  return data.map((item: QrSample, index) => {
+    if (
+      typeof item?.id !== 'string' ||
+      typeof item.raw !== 'string' ||
+      typeof item.expected?.productNo !== 'string' ||
+      typeof item.expected?.lot !== 'string'
+    ) {
+      throw new Error(`${index}번째 샘플 형식이 올바르지 않습니다`)
+    }
+    return item
+  })
+}
+
+const samplesIndex = process.argv.indexOf('--samples')
+let samplesFailed = false
+
+if (samplesIndex !== -1) {
+  const samplesPath = process.argv[samplesIndex + 1]
+  if (!samplesPath) throw new Error('사용법: --samples <샘플 JSON 경로>')
+
+  const samples = readSamples(samplesPath)
+  const failures: string[] = []
+
+  for (const sample of samples) {
+    const result = parseQr(sample.raw)
+    const productNo = result.productNo
+      ? normalizeProductNo(result.productNo)
+      : null
+    const pass =
+      productNo === sample.expected.productNo &&
+      result.lot === sample.expected.lot
+    if (!pass) {
+      failures.push(
+        [
+          `- ${sample.id} (${sample.labelType}${sample.source ? `, ${sample.source}` : ''})`,
+          `  원문: ${JSON.stringify(sample.raw)}`,
+          `  기대: ${sample.expected.productNo} / ${sample.expected.lot}`,
+          `  실제: ${productNo ?? '(없음)'} / ${result.lot ?? '(없음)'} (규칙: ${result.matchedRule ?? '없음'})`,
+        ].join('\n')
+      )
+    }
+  }
+
+  const passed = samples.length - failures.length
+  const rate = samples.length === 0 ? 0 : (passed / samples.length) * 100
+  samplesFailed = rate < AUTO_FILL_TARGET_RATE
+
+  console.log(`\n=== 샘플 자동 입력 성공률 (${samplesPath}) ===`)
+  console.log(
+    `성공 ${passed}/${samples.length}건, ${rate.toFixed(1)}% (목표 ${AUTO_FILL_TARGET_RATE}% 이상)`
+  )
+  if (failures.length > 0) console.log(`\n실패 목록:\n${failures.join('\n')}`)
+  console.log(samplesFailed ? '\n목표 미달' : '\n목표 달성')
+}
+
+process.exit(failed === 0 && !samplesFailed ? 0 : 1)

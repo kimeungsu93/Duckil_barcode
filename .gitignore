@@ -46,5 +46,8 @@ next-env.d.ts
 # 런타임 데이터 (DB·사진)
 /data/
 
+# scripts/backup-data.ts 기본 백업 위치 (DATA_DIR=./data일 때 저장소 루트의 backups/)
+/backups/
+
 # dev:https 자체 서명 인증서 (next dev --experimental-https)
 /certificates/

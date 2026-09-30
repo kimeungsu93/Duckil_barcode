@@ -1,0 +1,70 @@
+# Duckil Barcode nginx 설정 예시 (ROADMAP Phase 6 Task 023, 절차는 docs/guides/deployment.md)
+#
+# 휴대폰 브라우저는 HTTPS(보안 컨텍스트)에서만 카메라를 허용하므로 반드시 443으로 서비스한다 (PRD §8).
+# <...>로 표시한 값은 서버에 맞게 바꾼다. 앱은 PM2가 127.0.0.1:3000에서 실행한다 (ecosystem.config.cjs).
+#
+# 설치 예 (Ubuntu): /etc/nginx/sites-available/duckil-barcode 로 복사 → sites-enabled에 링크
+#   sudo nginx -t && sudo systemctl reload nginx
+
+upstream duckil_barcode {
+    server 127.0.0.1:3000;
+    keepalive 16;
+}
+
+# HTTP 요청은 HTTPS로 넘긴다
+server {
+    listen 80;
+    server_name <barcode.사내도메인>;
+
+    # 사내망만 허용 (PRD §8 외부 인터넷 노출 금지)
+    allow <사내 대역, 예: 10.0.0.0/8>;
+    deny all;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    # nginx 1.25.1 이상. 그보다 낮으면 이 줄을 지우고 `listen 443 ssl http2;`로 쓴다
+    http2 on;
+    server_name <barcode.사내도메인>;
+
+    # 인증서 방식은 미결 (PRD §10)
+    # - 사내 CA: 사내 CA가 발급한 인증서. 작업자 휴대폰에 사내 루트 인증서를 설치해야 한다
+    # - 공인 도메인 인증서: 사내 DNS로 이 서버를 가리키는 공인 도메인이 있으면 휴대폰 설정 없이 쓸 수 있다
+    ssl_certificate     <인증서 경로, 예: /etc/nginx/certs/barcode.crt>;
+    ssl_certificate_key <개인키 경로, 예: /etc/nginx/certs/barcode.key>;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # 사내망만 허용 (PRD §8 외부 인터넷 노출 금지)
+    allow <사내 대역, 예: 10.0.0.0/8>;
+    deny all;
+
+    # 사진 2장(각 최대 5MB, PHOTO_MAX_BYTES) + 입력값. nginx 기본값 1MB로는 사진 업로드가 413으로 막힌다
+    client_max_body_size 12m;
+
+    location / {
+        proxy_pass http://duckil_barcode;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Excel 내보내기는 사진이 많으면 수십 초 걸릴 수 있다 (PRD §8, 200건 경고 / 500건 상한)
+    location /api/export {
+        proxy_pass http://duckil_barcode;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        # 완성된 xlsx를 곧바로 내려보낸다
+        proxy_buffering off;
+    }
+}
