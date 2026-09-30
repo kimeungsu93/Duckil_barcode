@@ -10,12 +10,17 @@ duckil-barcode/
 │   ├── app.db            # SQLite DB
 │   └── uploads/          # 사진 파일 (uuid.jpg)
 ├── docs/                  # 📚 프로젝트 문서 (PRD, ROADMAP)
-│   └── guides/           # 개발 가이드 모음
+│   └── guides/           # 개발 가이드 모음 (deployment.md 배포·운영, device-test.md 실기기 테스트 포함)
 ├── public/                # 🌍 정적 파일 (이미지, 아이콘)
 ├── src/                   # 📦 소스 코드 루트
 │   ├── app/              # 🚀 Next.js App Router
 │   ├── components/       # 🧩 React 컴포넌트
+│   ├── hooks/            # 🪝 커스텀 훅 (use-records)
 │   └── lib/              # 🛠️ 유틸리티 및 설정
+├── scripts/               # 🔍 검증·시드 스크립트
+├── tests/fixtures/        # 🧪 Playwright MCP·API 테스트 자료
+├── deploy/                # 🚚 배포 설정 예시 (nginx.conf.example)
+├── ecosystem.config.cjs   # PM2 실행 설정 (fork 1개, TZ=Asia/Seoul, DATA_DIR 절대 경로)
 ├── tasks/                 # 📋 Task 작업 파일 (XXX-description.md)
 ├── components.json       # shadcn/ui 설정
 ├── next.config.ts        # Next.js 설정 (serverExternalPackages)
@@ -33,7 +38,7 @@ src/app/
 ├── layout.tsx           # 🎨 루트 레이아웃 (전역 설정, ThemeProvider·Toaster)
 ├── page.tsx             # 🏠 홈 - 기록 목록 (/)
 ├── _components/         # 홈 전용 컴포넌트
-│   ├── home-view.tsx    # 홈 컨테이너 (검색·더 보기 상태, 더미 데이터 공급)
+│   ├── home-view.tsx    # 홈 컨테이너 (API 경로는 useRecords, ?preview= 경로는 더미 데이터)
 │   ├── record-list.tsx  # 목록 표현 컴포넌트 (로딩·빈·오류·목록)
 │   ├── record-list-item.tsx # 목록 항목 (썸네일·Product No·Lot·일시)
 │   └── record-search.tsx    # 검색창
@@ -163,9 +168,17 @@ src/lib/
 │   ├── export.ts      # 날짜·내보내기 쿼리
 │   └── photo.ts       # 사진 파일명·파일 검사
 ├── api/               # 🌐 브라우저 전용 fetch 래퍼 (server-only 모듈 import 금지)
-│   └── records-client.ts # createRecord·listRecords·getRecord·updateRecord·deleteRecord·ApiError·photoUrl
+│   ├── records-client.ts # createRecord·listRecords·getRecord·updateRecord·deleteRecord·ApiError·photoUrl
+│   └── export-client.ts  # countRecordsInRange(건수 확인, Q6)·downloadExport(xlsx 저장) (Task 019)
 └── mock/              # 🧪 Phase 2 화면용 더미 데이터
     └── records.ts
+```
+
+### src/hooks/ - 커스텀 훅
+
+```
+src/hooks/
+└── use-records.ts     # 홈 목록·검색(300ms 디바운스)·더 보기를 GET /api/records에 연결 (Task 017)
 ```
 
 ### 기타 폴더
@@ -182,7 +195,11 @@ scripts/               # 🔍 Node 24 타입 스트리핑 검증 스크립트 (D
 ├── check-excel-export.ts   # excel-export.ts 검증 (행 수·No 순번·헤더 스타일·사진 비율)
 ├── check-export.ts         # GET /api/export 응답 xlsx를 exceljs로 재읽기해 검증
 ├── seed-export-test.ts     # 내보내기 테스트용 DB 직접 시드 (many/boundary/lots 서브커맨드)
-└── check-qr-parser.ts      # qr-parser.ts 검증 (규칙별 대표 샘플·별칭·실패 케이스·normalizeProductNo, DATA_DIR 불필요)
+├── check-data-integrity.ts # uploads 파일과 DB 사진 파일명 정합성 검사 (읽기 전용, Task 020)
+├── backup-data.ts          # DB 온라인 백업 + 백업본이 가리키는 사진 복사 (Task 023, 운영용)
+└── check-qr-parser.ts      # qr-parser.ts 검증 (규칙별 대표 샘플·별칭·실패 케이스·normalizeProductNo, DATA_DIR 불필요, `--samples`로 실제 라벨 샘플 성공률 측정)
+tests/fixtures/        # 🧪 테스트 업로드 자료 (가로형 JPEG·PNG·손상 JPEG·텍스트, README에 대용량·HEIC 생성법), QR 샘플 형식 예시(qr-samples.example.json)
+deploy/                # 🚚 nginx.conf.example (HTTPS·사내망 제한·업로드 12m·내보내기 타임아웃)
 tasks/                 # 📋 Task 작업 파일 (000-sample.md 템플릿)
 ```
 
@@ -198,6 +215,7 @@ DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/che
 DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-storage.ts
 DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-jpeg-size.ts
 DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-excel-export.ts
+DATA_DIR=/path/to/scratch node --import ./scripts/register-alias.mjs scripts/check-data-integrity.ts
 ```
 
 ## 🏷️ 파일 네이밍 컨벤션

@@ -6,7 +6,7 @@
 
 - **Duckil Barcode**: 휴대폰 브라우저로 제품 QR을 스캔해 Product No/Lot을 추출하고, 사진 2장(바코드·제품)과 함께 저장한 뒤 사진이 들어간 Excel로 내보내는 사내 웹앱 MVP
 - 스택: Next.js 15.5.3 App Router(Turbopack), React 19.1, TypeScript 5(strict), TailwindCSS v4, shadcn/ui(new-york, neutral, lucide), React Hook Form, Zod 4, sonner, `better-sqlite3`, `@zxing/browser`, `exceljs`, Node.js 24.16
-- **현재 상태**: Phase 2 완료(2026-09-28). 4개 화면(홈·스캔·상세·내보내기)이 더미 데이터로 동작하고, 화면 상태는 개발 모드 `?preview=`로 확인한다. Task 008-1 UX 검토 결과(Q11~Q13)가 PRD/ROADMAP에 반영됨. 다음 작업은 Phase 3 Task 009
+- **현재 상태**: Phase 5 완료(2026-09-30). 4개 화면(홈·스캔·상세·내보내기)이 실제 API·SQLite·카메라 스캐너에 연결되어 있고, Task 020 통합 E2E 테스트(`tasks/020-integration-test.md`)를 통과했다. `?preview=`는 개발 모드 화면 상태 확인용으로만 남아 있다. Phase 6은 코드로 먼저 할 수 있는 준비(QR 샘플 성공률 측정 `check-qr-parser.ts --samples`, `ecosystem.config.cjs`·`deploy/nginx.conf.example`·`scripts/backup-data.ts`, `docs/guides/deployment.md`·`device-test.md`)를 마쳤고, 나머지(Task 021 실제 샘플 규칙, Task 022 실기기 측정, Task 023 서버 적용)는 사용자가 실제 QR 원문·실기기·사내 서버 정보를 주면 진행한다
 - 로그인·권한·오프라인 동기화·3장 이상 사진·마스터 연동은 **범위 외**. 구현하지 않는다
 
 ## 2. 기준 문서와 우선순위
@@ -14,7 +14,7 @@
 | 우선순위 | 문서               | 용도                                                     |
 | -------- | ------------------ | -------------------------------------------------------- |
 | 1        | `docs/PRD.md`      | 요구사항·API 명세·검증 규칙·화면 상태의 **최종 기준**    |
-| 2        | `docs/ROADMAP.md`  | Task 순서, 담당 파일 경로, 미결 사항 임시 기본값(Q1~Q10) |
+| 2        | `docs/ROADMAP.md`  | Task 순서, 담당 파일 경로, 미결 사항 임시 기본값(Q1~Q16) |
 | 3        | `tasks/XXX-*.md`   | 개별 Task 명세·진행 상황                                 |
 | 4        | `docs/guides/*.md` | 구조·컴포넌트·스타일·Next.js 15·폼 작성 방식             |
 | 5        | `CLAUDE.md`        | 명령어·완료 체크리스트                                   |
@@ -176,13 +176,13 @@ ROADMAP Task 확인 → tasks/XXX-*.md 작성(또는 읽기) → 구현 → 단�
 | 폴더·파일 추가/삭제                            | `docs/guides/project-structure.md`                                                                                                                  |
 | 의존성 추가                                    | `package.json` + `package-lock.json` (npm으로 설치)                                                                                                 |
 | 환경변수 추가                                  | `src/lib/env.ts` 스키마                                                                                                                             |
-| 확인 필요 항목(Q1~Q10) 답변 수신               | `docs/ROADMAP.md` 표 상태 + 영향받는 Task 항목                                                                                                      |
+| 확인 필요 항목(Q1~Q16) 답변 수신               | `docs/ROADMAP.md` 표 상태 + 영향받는 Task 항목                                                                                                      |
 | Task 완료                                      | `tasks/XXX-*.md` 체크 + `docs/ROADMAP.md` 진행 현황 표                                                                                              |
 
 ## 9. AI 결정 기준
 
 1. PRD에 명시되어 있는가? → PRD를 따른다
-2. PRD에 없고 ROADMAP Q1~Q10에 임시 기본값이 있는가? → 기본값을 따르고, 코드 주석에 `(ROADMAP Qn)`을 남긴다
+2. PRD에 없고 ROADMAP Q1~Q16에 임시 기본값이 있는가? → 기본값을 따르고, 코드 주석에 `(ROADMAP Qn)`을 남긴다
 3. 둘 다 없고 되돌리기 쉬운 결정인가? → 가장 단순한 방법으로 진행하고 `tasks/XXX-*.md`에 "확인 필요"로 기록
 4. 데이터 모델·API 계약·보안·범위 외 기능에 영향을 주는가? → **구현을 멈추고 사용자에게 확인**
 
