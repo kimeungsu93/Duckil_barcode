@@ -492,7 +492,8 @@ Phase 2에서 만든 스캔 화면에 실제 QR 파서, 카메라, 이미지 리
   - 구현 사항
     - [x] `camera-support.ts`: `window.isSecureContext && !!navigator.mediaDevices?.getUserMedia`로 지원 여부 판단. 미지원이면 카메라를 시도하지 않고 바로 직접 입력으로 전환 (F1-4)
     - [x] `@zxing/browser`의 `BrowserMultiFormatReader`로 `facingMode: 'environment'` 스트림 디코딩, `scanner-view`의 영상 자리에 연결. 힌트(`DecodeHintType.POSSIBLE_FORMATS`)는 QR_CODE, DATA_MATRIX + CODE_128, EAN_13, CODE_39. 참고 라벨의 2D 코드가 Data Matrix이므로 반드시 포함 (F1-1, Q14)
-    - [x] 작은 Data Matrix 인식을 위해 `decodeFromVideoDevice` 대신 `decodeFromConstraints`로 `video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }`를 직접 지정. `DecodeHintType.TRY_HARDER`는 1D 리더 순서가 밀리는 부작용이 있어 Task 022 실기기 측정 후 적용 여부 결정
+    - [x] 작은 Data Matrix 인식을 위해 `decodeFromVideoDevice` 대신 `decodeFromConstraints`로 `video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }`를 직접 지정. `DecodeHintType.TRY_HARDER`는 1D 리더 순서가 밀리는 부작용이 있어 Task 022 실기기 측정 후 적용 여부 결정 → TRY_HARDER는 Data Matrix에 영향이 없음을 확인(2026-10-01)
+    - [x] (후속 수정, 2026-10-01) 실기기에서 실제 라벨 Data Matrix가 인식되지 않음. zxing-js 검출기가 프레임 정중앙에서만 코드를 찾는 것이 원인이었다. 디코더를 `zxing-wasm`(zxing-cpp)으로 교체하고 조준 사각형 주변만 잘라 120ms 간격으로 디코딩(4번에 1번은 전체 프레임). 지원 기기에서 연속 초점·줌 1.5 적용. wasm은 `scripts/copy-zxing-wasm.mjs`로 `public/wasm/`에 복사해 self-host하고, 불러오지 못하면 zxing-js로 폴백. 상세는 `tasks/014-qr-scanner.md` 후속 수정
     - [x] `<video playsInline muted autoPlay>`로 iOS Safari 인라인 재생 보장, 언마운트·단계 이동 시 `controls.stop()`으로 카메라 트랙 해제
     - [x] 권한 거부(`NotAllowedError`)와 카메라 없음(`NotFoundError`)은 `camera-unavailable` 화면으로 전환 (F1-3)
     - [x] 인식 시 `onDetected(rawText)`를 1회만 호출하고 디코딩 일시 정지. `feedback.ts`에서 `navigator.vibrate(100)`(가능 기기) 또는 Web Audio 효과음. 효과음은 "스캔 시작" 탭에서 AudioContext를 미리 활성화 (F1-2)
@@ -653,7 +654,7 @@ Phase 2에서 만든 홈·상세·내보내기 화면의 더미 데이터를 실
   - 구현 사항
     - [x] (1단계) 샘플 파일 형식 정의와 `check-qr-parser.ts --samples <경로>` 성공률 측정(95% 미만이면 exit 1, 실패 목록 출력)
     - [ ] 라벨 종류별 원문 샘플 수집 (최소 20개, 가능하면 거래처·라벨 종류별로 나눔). 참고 라벨(`84739-DC000(G2E)` 계열, Data Matrix) 원문을 반드시 포함
-    - [ ] 샘플 형식에 맞는 전용 규칙을 만들어 `QR_RULES` 맨 앞에 추가
+    - [ ] 샘플 형식에 맞는 전용 규칙을 만들어 `QR_RULES` 맨 앞에 추가 — 참고 라벨 1건(ISO 15434 `[)>`, `P`=Product No, `T`의 앞쪽 연속 숫자=Lot)으로 `iso15434` 규칙을 먼저 추가함(2026-10-01). 다른 라벨 샘플로 추가 검증 필요
     - [ ] 실제 샘플로 `normalizeProductNo` 규칙(5자리 숫자 + 5자리 영숫자 + 접미사)이 맞는지 검증하고, 다른 품번 체계가 있으면 규칙을 보완 (Q15)
     - [ ] 기본 규칙과 충돌하지 않는지 확인하고, 필요하면 순서 조정
     - [ ] 검증 스크립트에 실제 샘플과 기대값 추가
@@ -672,7 +673,7 @@ Phase 2에서 만든 홈·상세·내보내기 화면의 더미 데이터를 실
     - [x] 테스트 환경 준비: 개발 PC HTTPS 접속 절차와 루트 인증서 설치 방법을 `docs/guides/device-test.md` 2장에 정리. `npm run dev:https`는 `--hostname 0.0.0.0`이라 인증서에 LAN IP가 들어가지 않으므로, 휴대폰 테스트는 `--hostname <LAN IP>`로 실행 (Next.js는 `localhost`·`127.0.0.1`·`::1`·`--hostname` 값으로만 인증서를 만듦)
     - [ ] iOS Safari, Android Chrome 각각에서 F1-1(후면 카메라 자동 시작), F1-2(1초 이내 인식·진동/효과음), F1-3(권한 거부) 확인
     - [ ] 실제 라벨로 스캔 성공률과 1건 등록 소요 시간 측정 (목표 30초 이내, PRD §9)
-    - [ ] 실제 Data Matrix 라벨(작은 코드, 옆에 검사 스티커가 붙은 상태)의 인식률·인식 시간 측정. `TRY_HARDER` 적용 전후와 고해상도 constraints 효과를 비교해 Task 014 설정 확정 (Q14)
+    - [ ] 실제 Data Matrix 라벨(작은 코드, 옆에 검사 스티커가 붙은 상태)의 인식률·인식 시간 측정. zxing-wasm 스캐너의 줌(1.0·1.5·2.0)·디코딩 간격·ROI 여유 값을 비교해 Task 014 설정 확정 (Q14). 확정 후 zxing-js 폴백과 `@zxing/browser`·`@zxing/library` 제거 여부 결정
     - [ ] 사진 2장 저장 시간 측정 (목표 3초 이내, 사내 Wi-Fi, PRD §8)
     - [ ] 갤러리 HEIC 선택, 화면 회전, 앱 전환 후 복귀 시 카메라 해제·재시작 확인
     - [ ] 하단 탭 바·버튼의 한 손 조작성, iOS 안전 영역 겹침 여부 확인
@@ -693,6 +694,7 @@ Phase 2에서 만든 홈·상세·내보내기 화면의 더미 데이터를 실
     - [x] nginx: HTTPS 인증서(사내 CA 또는 도메인 인증서, PRD §10 미결), `client_max_body_size`를 사진 2장 상한 이상(예: 12m)으로 설정(nginx 기본값 1MB), 내보내기용 `proxy_read_timeout` 연장(예: 120s), 사내망 IP만 허용
     - [x] 백업: `data/` 폴더 정기 백업. WAL 모드이므로 파일을 그냥 복사하지 말고 SQLite 온라인 백업(`sqlite3 app.db ".backup ..."` 또는 `better-sqlite3`의 `backup()`)으로 DB를 떠낸 뒤 `uploads/`와 함께 보관, 복원 절차 문서화
     - [x] 업데이트 절차(pull → `npm ci` → build → `pm2 reload`)와 장애 시 확인 항목(로그, 디스크 용량, 권한) 문서화
+    - [ ] 서버에서 `/wasm/zxing_reader.wasm`이 `200`·`application/wasm`으로 응답하는지 확인 (스캐너 디코더, `docs/guides/deployment.md` 2장)
   - 완료 조건
     - [ ] 사내 서버 HTTPS 주소에서 휴대폰으로 전체 흐름(스캔 → 저장 → 목록 → 내보내기)이 동작한다
     - [ ] 서버 재시작 후에도 데이터가 유지되고, 저장된 기록 시각이 KST로 맞다 (로컬 `TZ=UTC` 프로덕션 리허설로는 확인, 서버 확인 대기)

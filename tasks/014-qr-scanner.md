@@ -58,3 +58,18 @@
 - `src/app/scan/_components/scanner-step.tsx`: `next/dynamic(ssr:false)`로 `QrScanner` 연결, `camera === 'checking'` 스켈레톤, `onCameraError` prop 추가
 - `src/app/scan/_components/scan-flow.tsx`: `CameraStatus`에 `'not-found'` 추가, `CAMERA_ERROR` 액션으로 실제 오류 사유 반영
 - 버그 수정 없음: 계획대로 구현했고 체크리스트에서 별도 결함을 발견하지 않았다
+
+## 후속 수정 (2026-10-01): 실제 라벨 Data Matrix 인식 실패
+
+- **증상**: 실기기에서 실제 제품 라벨(작은 Data Matrix, 검은 비닐 위)을 비추면 앱이 인식하지 못했다. 폰 기본 카메라 앱은 바로 인식했다.
+- **원인**: zxing-js `DataMatrixReader`의 `WhiteRectangleDetector`가 이미지 정중앙에서 흰 여백을 찾아 확장하는 방식이다. 1080p 프레임 전체를 넣으면 실패하고, 코드만 잘라낸 이미지에서만 성공했다. 위치·배율을 조금만 바꿔도 결과가 갈렸다. `TRY_HARDER`는 1D 리더 순서에만 영향이 있어 효과가 없다.
+- **수정**
+  - `src/components/scanner/qr-scanner.tsx`: 디코더를 `zxing-wasm/reader`(zxing-cpp 3.1.4)로 교체. `getUserMedia` 스트림을 직접 열고, 조준 사각형 주변(1.4배)만 캔버스에 잘라 120ms 간격으로 `readBarcodes`를 호출한다. 4번에 1번은 전체 프레임을 디코딩한다. 옵션은 `textMode: 'Plain'`(기본 HRI는 GS·RS를 보이는 기호로 바꿈), `binarizer: 'LocalAverage'`, `tryHarder/tryRotate/tryInvert`. 지원 기기에서만 연속 초점과 줌 1.5를 적용한다. wasm을 불러오지 못하면 기존 zxing-js 경로로 폴백한다.
+  - `src/lib/scan-roi.ts`(신규): `object-cover`를 보정해 조준 사각형을 원본 프레임 좌표로 환산하는 순수 함수.
+  - `scripts/copy-zxing-wasm.mjs`(신규): `postinstall`·`predev`·`predev:https`·`prebuild`에서 `zxing_reader.wasm`을 `public/wasm/`으로 복사(사내망이라 CDN 미사용, `.gitignore` 대상).
+  - `src/lib/qr-parser.ts`: 실제 원문 `[)>␞06␝VSJNW␝P846L9DC000␝T2606191J04A0000196␝CB.00␝␞␄`(ISO 15434)을 위한 `iso15434` 규칙을 맨 앞에 추가. `P`=Product No(`846L9DC000`), `T`의 앞쪽 연속 숫자=Lot(`2606191`, 사용자 확인).
+- **검증**
+  - Node: 참고 사진(원본·1920폭·1280폭·라벨 크롭·축소 크롭)과, 코드를 상하좌우로 옮긴 1280x720 프레임 6종을 zxing-wasm이 모두 인식.
+  - Playwright(프로덕션 빌드, 캔버스 가짜 카메라 1280x720): `/scan` 진입 약 0.65초 만에 인식, Product No `846L9DC000`·Lot `2606191` 자동 입력. `/wasm/zxing_reader.wasm?v=3.1.4` 200 `application/wasm`. wasm 요청을 막으면 경고 후 zxing-js로 폴백해 동작. `NotAllowedError` 시 권한 안내 화면 정상.
+  - `check-qr-parser.ts` 전 항목 통과, `--samples tests/fixtures/qr-samples.example.json` 5/5. `npm run check-all`, `npm run build` 통과.
+  - 실제 카메라(반사·초점·흔들림)에서의 인식률·시간은 Task 022 실기기 측정으로 확인한다.

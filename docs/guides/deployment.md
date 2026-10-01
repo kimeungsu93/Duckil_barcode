@@ -42,6 +42,9 @@ npm ci           # better-sqlite3 설치 실패 시 1장의 빌드 도구 설치
 npm run build    # ✅ 로컬 리허설: 빌드 중 DATA_DIR를 만들지 않음 (DB는 첫 요청 때 생성)
 ```
 
+- `npm ci`(postinstall)와 `npm run build`(prebuild)가 스캐너 디코더 `public/wasm/zxing_reader.wasm`(약 1MB)을 `node_modules`에서 자동으로 복사합니다. 사내망이라 CDN 대신 앱 서버가 직접 서빙합니다
+- 배포 후 `curl -I https://<주소>/wasm/zxing_reader.wasm`이 `200`, `Content-Type: application/wasm`인지 확인합니다 (nginx `mime.types`에 `wasm`이 없으면 추가)
+
 ## 3. PM2 실행
 
 `ecosystem.config.cjs`의 `SERVER` 블록만 서버에 맞게 바꿉니다.
@@ -155,15 +158,16 @@ pm2 reload ecosystem.config.cjs --update-env
 
 ## 7. 장애 점검
 
-| 증상                        | 확인할 것                                                                                            |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 접속이 안 됨                | `pm2 status`, `pm2 logs duckil-barcode`, `sudo nginx -t`, `curl -I http://127.0.0.1:3000/`           |
-| 카메라가 켜지지 않음        | HTTPS 주소인지, 인증서가 신뢰되는지(자물쇠 표시), 브라우저 카메라 권한                               |
-| 사진 저장이 413             | nginx `client_max_body_size`(1MB 기본값으로 돌아가지 않았는지). 앱 자체 413은 사진 1장 5MB 초과일 때 |
-| 저장·삭제가 500             | `DATA_DIR` 권한(실행 계정이 `data/`, `data/uploads/`에 쓰기 가능한지), 디스크 여유 `df -h`           |
-| 기록 시각이 이상함          | `pm2 env <id>`에서 `TZ=Asia/Seoul` 확인. 저장값은 항상 `+09:00`이어야 함                             |
-| 내보내기가 중간에 끊김(504) | nginx `/api/export`의 `proxy_read_timeout`, 기간을 좁혀 다시 시도, `pm2 monit`으로 메모리 확인       |
-| 목록에 있는데 사진이 404    | `check-data-integrity.ts`로 고아 레코드 확인. 파일을 손으로 지웠거나 복원이 덜 된 경우               |
+| 증상                          | 확인할 것                                                                                                                      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 접속이 안 됨                  | `pm2 status`, `pm2 logs duckil-barcode`, `sudo nginx -t`, `curl -I http://127.0.0.1:3000/`                                     |
+| 카메라가 켜지지 않음          | HTTPS 주소인지, 인증서가 신뢰되는지(자물쇠 표시), 브라우저 카메라 권한                                                         |
+| 카메라는 켜지는데 인식이 느림 | `/wasm/zxing_reader.wasm`이 200인지. 실패하면 브라우저 콘솔에 "기본 디코더로 전환" 경고가 뜨고 인식률이 낮은 zxing-js로 동작함 |
+| 사진 저장이 413               | nginx `client_max_body_size`(1MB 기본값으로 돌아가지 않았는지). 앱 자체 413은 사진 1장 5MB 초과일 때                           |
+| 저장·삭제가 500               | `DATA_DIR` 권한(실행 계정이 `data/`, `data/uploads/`에 쓰기 가능한지), 디스크 여유 `df -h`                                     |
+| 기록 시각이 이상함            | `pm2 env <id>`에서 `TZ=Asia/Seoul` 확인. 저장값은 항상 `+09:00`이어야 함                                                       |
+| 내보내기가 중간에 끊김(504)   | nginx `/api/export`의 `proxy_read_timeout`, 기간을 좁혀 다시 시도, `pm2 monit`으로 메모리 확인                                 |
+| 목록에 있는데 사진이 404      | `check-data-integrity.ts`로 고아 레코드 확인. 파일을 손으로 지웠거나 복원이 덜 된 경우                                         |
 
 ## 8. 서버 담당자 확인 목록 (PRD §10 미결)
 
