@@ -6,8 +6,12 @@
     "node": ">=24.16"
   },
   "scripts": {
+    "postinstall": "node scripts/copy-zxing-wasm.mjs",
+    "predev": "node scripts/copy-zxing-wasm.mjs",
     "dev": "next dev --turbopack",
+    "predev:https": "node scripts/copy-zxing-wasm.mjs",
     "dev:https": "next dev --turbopack --experimental-https --hostname 0.0.0.0",
+    "prebuild": "node scripts/copy-zxing-wasm.mjs",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint .",
@@ -47,7 +51,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "usehooks-ts": "^3.1.1",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "zxing-wasm": "~3.1.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

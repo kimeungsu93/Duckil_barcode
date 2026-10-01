@@ -51,3 +51,6 @@ next-env.d.ts
 
 # dev:https 자체 서명 인증서 (next dev --experimental-https)
 /certificates/
+
+# zxing-wasm 디코더 바이너리 (scripts/copy-zxing-wasm.mjs가 node_modules에서 복사)
+/public/wasm/

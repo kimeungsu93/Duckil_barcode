@@ -7,7 +7,7 @@ interface ScannerViewProps {
   className?: string
 }
 
-// 카메라 영역 + 조준 사각형. Phase 2에서는 회색 영역만 보여준다
+// 카메라 영역 + 조준 사각형. 스캐너는 조준 사각형 주변을 잘라 디코딩한다
 export function ScannerView({
   children,
   hint = '코드를 사각형 안에 맞춰주세요',
@@ -22,6 +22,7 @@ export function ScannerView({
     >
       {children}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-4">
+        {/* 크기(size-3/5 max-w-64)를 바꾸면 src/lib/scan-roi.ts의 AIM_* 상수도 함께 바꾼다 (디코딩 영역) */}
         <div
           aria-hidden
           className="border-primary/80 size-3/5 max-w-64 rounded-lg border-2 shadow-[0_0_0_9999px_rgb(0_0_0/0.25)]"
