@@ -37,6 +37,23 @@ const cases: Case[] = [
     { productNo: '84739DC000G2E', lot: '2608200040', matchedRule: 'delimited' },
   ],
 
+  // --- iso15434: 실제 제품 라벨 Data Matrix 원문 ---
+  [
+    'iso15434 실제 라벨 원문',
+    '[)>\x1e06\x1dVSJNW\x1dP846L9DC000\x1dT2606191J04A0000196\x1dCB.00\x1d\x1e\x04',
+    { productNo: '846L9DC000', lot: '2606191', matchedRule: 'iso15434' },
+  ],
+  [
+    'iso15434 T 세그먼트 없으면 실패',
+    '[)>\x1e06\x1dVSJNW\x1dP846L9DC000\x1dCB.00\x1d\x1e\x04',
+    NULL_RESULT,
+  ],
+  [
+    'iso15434 T 세그먼트가 숫자로 시작하지 않으면 실패',
+    '[)>\x1e06\x1dP846L9DC000\x1dTJ04A0000196\x1e\x04',
+    NULL_RESULT,
+  ],
+
   // --- key-value: 별칭·대소문자·공백 무시 ---
   [
     'key-value 별칭(P/N, LOT_NO)·소문자·공백',

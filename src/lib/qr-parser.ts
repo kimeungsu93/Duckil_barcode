@@ -1,5 +1,5 @@
 // 순수 QR 파서 모듈 - 브라우저·서버 API(window, document, node:*, next)에 의존하지 않는다.
-// PRD §3 F2 순서대로 규칙을 시도해 처음 성공한 규칙을 채택한다: key-value → gs1-ai → delimited.
+// 규칙을 순서대로 시도해 처음 성공한 규칙을 채택한다: iso15434 → key-value → gs1-ai → delimited.
 // 이 파일과 scripts/check-qr-parser.ts 외에는 수정하지 않는다 (Task 014·015와 병행 작업 중, 파일 소유 분리).
 
 // 파싱 결과. 모든 규칙이 실패하면 세 값 모두 null.
@@ -141,16 +141,36 @@ function parseDelimited(
   return { productNo, lot }
 }
 
-// 참고 라벨 텍스트(줄바꿈으로 구분된 3줄, 예: "2608200040" / "84739DC000G2E" / "HW 1.00")는
-// 아직 정식 규칙으로 만들지 않는다. 실제 원문(구분자·순서)을 확보하지 못했기 때문이다 (Q1).
-// 추정 규칙 후보(확정 전, Task 021에서 실제 샘플로 검증 후 QR_RULES 맨 앞에 추가 예정):
-//   - 줄 단위(\n)로 3개 항목이 오는 형식으로 보이며 순서가 고정이라고 가정
-//   - 1번째 줄 = Lot (날짜+일련번호, 예: 2608200040) → 별도 키 표시 없이 값만 온다고 가정
-//   - 2번째 줄 = Product No 원문 (예: 84739DC000G2E) → normalizeProductNo 적용 대상
-//   - 3번째 줄 = HW 버전 (예: HW 1.00) → 현재 저장 스키마에 대응 필드가 없어 별도 검토 필요
+// iso15434 규칙: 실제 제품 라벨 Data Matrix 원문 형식 (ISO/IEC 15434 + ANSI MH10.8.2 데이터 식별자).
+// 예: "[)>␞06␝VSJNW␝P846L9DC000␝T2606191J04A0000196␝CB.00␝␞␄"
+//   (␞=RS \x1e, ␝=GS \x1d, ␄=EOT \x04. 라벨 인쇄 텍스트: 2606190196 / 846L9DC000 / HW B.00)
+//   - P 세그먼트 = Product No (846L9DC000)
+//   - T 세그먼트(추적 번호)의 앞쪽 연속 숫자 = Lot (2606191). 첫 영문자부터는 Lot이 아니다
+//   - V(공급자 코드), C(HW 버전)는 현재 저장 스키마에 대응 필드가 없어 쓰지 않는다
+const ISO15434_HEADER = '[)>'
+const ISO15434_SEPARATOR = /[\x1d\x1e\x04]/
+const ISO15434_LOT_PATTERN = /^\d+/
+
+function parseIso15434(raw: string): { productNo: string; lot: string } | null {
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith(ISO15434_HEADER)) return null
+
+  const segments = trimmed
+    .slice(ISO15434_HEADER.length)
+    .split(ISO15434_SEPARATOR)
+    .map(segment => segment.trim())
+  const productNo = segments.find(s => s.startsWith('P'))?.slice(1)
+  const tracking = segments.find(s => s.startsWith('T'))?.slice(1)
+  const lot = tracking?.match(ISO15434_LOT_PATTERN)?.[0]
+
+  if (!productNo || !lot) return null
+  return { productNo, lot }
+}
 
 // 규칙 목록. 앞에서부터 순서대로 시도하고 처음 성공하는 규칙을 채택한다 (PRD §3 F2).
+// 실제 라벨 형식(iso15434)을 가장 먼저 시도한다.
 export const QR_RULES: QrRule[] = [
+  { name: 'iso15434', parse: parseIso15434 },
   { name: 'key-value', parse: parseKeyValue },
   { name: 'gs1-ai', parse: parseGs1Ai },
   { name: 'delimited', parse: parseDelimited },
