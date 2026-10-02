@@ -28,9 +28,9 @@ interface PhotoSlotProps {
   busy?: boolean
 }
 
-// 바코드·제품 사진 슬롯 공용 정의 (PRD F3). photo-step·record-detail-view가 함께 쓴다
+// 바코드·제품·점등 사진 슬롯 공용 정의 (PRD F3). photo-step·record-detail-view가 함께 쓴다
 export const PHOTO_SLOTS: {
-  kind: 'barcode' | 'product'
+  kind: 'barcode' | 'product' | 'lighting'
   label: string
   hint: string
 }[] = [
@@ -40,6 +40,12 @@ export const PHOTO_SLOTS: {
     hint: '라벨과 검사 스티커가 보이게 가까이',
   },
   { kind: 'product', label: '제품 사진', hint: '제품 전체가 보이게 가로로' },
+  // Phase 7 Task 026 (PRD F3-5)
+  {
+    kind: 'lighting',
+    label: '점등 사진',
+    hint: '램프가 켜진 상태가 보이게',
+  },
 ]
 
 // 사진 1장 슬롯 (빈 상태 / 미리보기 / 오류)

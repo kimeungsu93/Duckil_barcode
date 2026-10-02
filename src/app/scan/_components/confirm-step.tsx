@@ -3,12 +3,12 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
-import { AlertCircle, ArrowLeft, ArrowRight, Info } from 'lucide-react'
+import { AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react'
 import { z } from 'zod'
-import type { CameraStatus, ScanFields } from './scan-flow'
+import type { ScanFields } from './scan-flow'
 import { RawTextBox } from '@/components/records/raw-text-box'
 import { RecordFields } from '@/components/records/record-fields'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { MANUAL_RAW_TEXT } from '@/lib/constants'
@@ -28,13 +28,11 @@ type ConfirmOutput = z.output<typeof confirmSchema>
 const SERVER_ERROR_FIELDS = ['raw_text', 'product_no', 'lot', 'memo'] as const
 
 interface ConfirmStepProps {
-  mode: 'camera' | 'manual'
-  camera: CameraStatus
+  mode: 'scan' | 'manual'
   rawText: string
   parseFailed: boolean
   defaultValues: ScanFields
   onConfirm: (fields: ScanFields) => void
-  // 카메라 미지원이면 돌아갈 스캐너가 없어 undefined
   onBack?: () => void
   // 저장 시 400 VALIDATION_ERROR로 돌아온 필드별 오류 메시지 (Task 016)
   serverErrors?: Record<string, string> | null
@@ -42,7 +40,6 @@ interface ConfirmStepProps {
 
 export function ConfirmStep({
   mode,
-  camera,
   rawText,
   parseFailed,
   defaultValues,
@@ -100,18 +97,6 @@ export function ConfirmStep({
         noValidate
         className="flex flex-col gap-4"
       >
-        {camera === 'unsupported' && (
-          <Alert>
-            <Info />
-            <AlertTitle>
-              이 브라우저에서는 카메라를 사용할 수 없습니다
-            </AlertTitle>
-            <AlertDescription>
-              제품 정보를 직접 입력해주세요. 카메라는 HTTPS 주소에서만 사용할 수
-              있습니다.
-            </AlertDescription>
-          </Alert>
-        )}
         {parseFailed && (
           // PRD §5 S-스캔-3
           <Alert variant="destructive">
@@ -119,7 +104,7 @@ export function ConfirmStep({
             <AlertTitle>자동 인식 실패, 직접 입력해주세요</AlertTitle>
           </Alert>
         )}
-        {mode === 'camera' && <RawTextBox rawText={rawText} />}
+        {mode === 'scan' && <RawTextBox rawText={rawText} />}
         <RecordFields
           showRawTextInput={mode === 'manual'}
           onRawTextBlur={mode === 'manual' ? handleRawTextBlur : undefined}

@@ -5,12 +5,14 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { env, UPLOAD_DIR } from '@/lib/env'
+import { MANUAL_RAW_TEXT } from '@/lib/constants'
 import { getDb } from '@/lib/db'
 import {
   countRecordsInRange,
   deleteRecord,
-  existsByProductLot,
+  findByRawText,
   findRecordById,
+  isRawKeyConflict,
   insertRecord,
   listRecords,
   listRecordsForExport,
@@ -18,6 +20,10 @@ import {
 } from '@/lib/records-repo'
 
 let failed = 0
+
+// raw_key UNIQUE 인덱스(v2)에 걸리지 않도록 테스트 기록마다 다른 원문을 쓴다
+let rawSeq = 0
+const nextRaw = () => `R-${++rawSeq}`
 function check(name: string, pass: boolean, detail?: string): void {
   if (!pass) failed++
   console.log(
@@ -72,9 +78,13 @@ check(
   'idx_records_product_lot 인덱스 생성',
   indexNames.includes('idx_records_product_lot')
 )
+check(
+  'idx_records_raw_key 인덱스 생성(v2)',
+  indexNames.includes('idx_records_raw_key')
+)
 
 const userVersion = db.pragma('user_version', { simple: true }) as number
-check('user_version = 1', userVersion === 1)
+check('user_version = 3', userVersion === 3)
 
 const walMode = db.pragma('journal_mode', { simple: true }) as string
 check('journal_mode = wal', walMode === 'wal', walMode)
@@ -96,7 +106,9 @@ check(
 )
 check(
   'insertRecord: 사진 미지정 시 null',
-  created.barcode_photo === null && created.product_photo === null
+  created.barcode_photo === null &&
+    created.product_photo === null &&
+    created.lighting_photo === null
 )
 
 const found = findRecordById(created.id)
@@ -150,18 +162,26 @@ check(
 
 // ── 3. 검색 이스케이프(%, _, \)와 대소문자 무시 (F4-3, Q13) ────────────
 const wildMarker = 'WILD'
-insertRecord({ raw_text: 'r', product_no: `${wildMarker}-A_C`, lot: 'L' }) // 리터럴 밑줄
-insertRecord({ raw_text: 'r', product_no: `${wildMarker}-ABC`, lot: 'L' }) // 밑줄 자리에 다른 문자
-insertRecord({ raw_text: 'r', product_no: `${wildMarker}-A%C`, lot: 'L' }) // 리터럴 퍼센트
-insertRecord({ raw_text: 'r', product_no: `${wildMarker}-AXXXC`, lot: 'L' }) // 퍼센트 자리에 여러 문자
-insertRecord({ raw_text: 'r', product_no: `${wildMarker}-A\\C`, lot: 'L' }) // 리터럴 백슬래시
+insertRecord({ raw_text: nextRaw(), product_no: `${wildMarker}-A_C`, lot: 'L' }) // 리터럴 밑줄
+insertRecord({ raw_text: nextRaw(), product_no: `${wildMarker}-ABC`, lot: 'L' }) // 밑줄 자리에 다른 문자
+insertRecord({ raw_text: nextRaw(), product_no: `${wildMarker}-A%C`, lot: 'L' }) // 리터럴 퍼센트
 insertRecord({
-  raw_text: 'r',
+  raw_text: nextRaw(),
+  product_no: `${wildMarker}-AXXXC`,
+  lot: 'L',
+}) // 퍼센트 자리에 여러 문자
+insertRecord({
+  raw_text: nextRaw(),
+  product_no: `${wildMarker}-A\\C`,
+  lot: 'L',
+}) // 리터럴 백슬래시
+insertRecord({
+  raw_text: nextRaw(),
   product_no: `${wildMarker}-CaseTest-XYZ`,
   lot: 'L',
 })
 insertRecord({
-  raw_text: 'r',
+  raw_text: nextRaw(),
   product_no: `${wildMarker}-Other`,
   lot: `${wildMarker}-LotOnly`,
 })
@@ -220,29 +240,57 @@ check(
   lotSearch.rows.some(r => r.lot === `${wildMarker}-LotOnly`)
 )
 
-// ── 4. 중복 판정 existsByProductLot: trim + 대소문자 구분 정확 일치 (Q9) ─
-const dupProductNo = 'DUP-P-정확'
-const dupLot = 'DUP-L-정확'
-insertRecord({ raw_text: 'r', product_no: dupProductNo, lot: dupLot })
+// ── 4. 원본 바코드 중복 조회 findByRawText (Phase 7 Task 025) ─────────
+const dupRaw = '[)>\x1e06\x1dVDUP\x1dP84739DC000\x1dT2606191J04A\x1e\x04'
+const dupRow = insertRecord({
+  raw_text: dupRaw,
+  product_no: 'DUP-P',
+  lot: 'DUP-L',
+})
 check(
-  'existsByProductLot: 정확 일치 true',
-  existsByProductLot(dupProductNo, dupLot)
+  'insertRecord: raw_key는 제어문자를 지운 값',
+  dupRow.raw_key === '[)>06VDUPP84739DC000T2606191J04A'
 )
 check(
-  'existsByProductLot: trim 후 일치도 true',
-  existsByProductLot(`  ${dupProductNo}  `, `\t${dupLot}\n`)
+  'findByRawText: 같은 원문 → 기존 기록',
+  findByRawText(dupRaw)?.id === dupRow.id
 )
 check(
-  'existsByProductLot: 대소문자 다르면 false(Q9는 대소문자 구분, Q13과 구별)',
-  existsByProductLot(dupProductNo.toLowerCase(), dupLot) === false
+  'findByRawText: 제어문자만 빠진 원문(PDA 웨지)도 같은 기록',
+  findByRawText('[)>06VDUPP84739DC000T2606191J04A')?.id === dupRow.id
 )
 check(
-  'existsByProductLot: 부분 일치는 false(정확 일치만)',
-  existsByProductLot(dupProductNo.slice(0, -1), dupLot) === false
+  'findByRawText: 다른 원문은 undefined',
+  findByRawText('NOPE-RAW') === undefined
+)
+let uniqueBlocked = false
+try {
+  insertRecord({
+    raw_text: `  ${dupRaw}  `,
+    product_no: 'DUP-P2',
+    lot: 'DUP-L2',
+  })
+} catch (error) {
+  uniqueBlocked = isRawKeyConflict(error)
+}
+check('insertRecord: 같은 raw_key는 UNIQUE 인덱스로 거부', uniqueBlocked)
+const manualA = insertRecord({
+  raw_text: MANUAL_RAW_TEXT,
+  product_no: 'M-1',
+  lot: 'M',
+})
+const manualB = insertRecord({
+  raw_text: MANUAL_RAW_TEXT,
+  product_no: 'M-2',
+  lot: 'M',
+})
+check(
+  '직접 입력 원문은 raw_key NULL, 여러 건 저장 가능',
+  manualA.raw_key === null && manualB.raw_key === null
 )
 check(
-  'existsByProductLot: 없는 조합은 false',
-  existsByProductLot('NOPE-1', 'NOPE-2') === false
+  'findByRawText: 직접 입력 원문은 판정 제외',
+  findByRawText(MANUAL_RAW_TEXT) === undefined
 )
 
 // ── 5. 같은 created_at 기록의 id 순서 (Q16) ────────────────────────────
@@ -256,7 +304,7 @@ const insertRaw = db.prepare(
 const sameIds: number[] = []
 for (let i = 1; i <= 3; i++) {
   const info = insertRaw.run({
-    raw_text: 'r',
+    raw_text: nextRaw(),
     product_no: `${sameMarker}-${i}`,
     lot: sameMarker,
     created_at: sameCreatedAt,
@@ -291,13 +339,13 @@ const lastMoment = `${boundaryDay}T23:59:59+09:00`
 const firstMomentNextDay = `${boundaryNextDay}T00:00:00+09:00`
 
 insertRaw.run({
-  raw_text: 'r',
+  raw_text: nextRaw(),
   product_no: 'BOUND-LAST',
   lot: 'BOUND',
   created_at: lastMoment,
 })
 insertRaw.run({
-  raw_text: 'r',
+  raw_text: nextRaw(),
   product_no: 'BOUND-FIRST-NEXT',
   lot: 'BOUND',
   created_at: firstMomentNextDay,
@@ -374,13 +422,13 @@ check(
 )
 
 const planExists = planOf(
-  'SELECT 1 FROM records WHERE product_no = @productNo AND lot = @lot LIMIT 1',
-  { productNo: dupProductNo, lot: dupLot }
+  'SELECT * FROM records WHERE raw_key = @key ORDER BY id LIMIT 1',
+  { key: 'NOPE-RAW' }
 )
 console.log(`plan[중복 판정]  ${planExists}`)
 check(
-  'EXPLAIN: 중복 판정은 idx_records_product_lot 사용',
-  planExists.includes('idx_records_product_lot')
+  'EXPLAIN: 원본 바코드 중복 판정은 idx_records_raw_key 사용',
+  planExists.includes('idx_records_raw_key')
 )
 
 const planLike = planOf(

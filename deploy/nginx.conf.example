@@ -40,8 +40,8 @@ server {
     allow <사내 대역, 예: 10.0.0.0/8>;
     deny all;
 
-    # 사진 2장(각 최대 5MB, PHOTO_MAX_BYTES) + 입력값. nginx 기본값 1MB로는 사진 업로드가 413으로 막힌다
-    client_max_body_size 12m;
+    # 사진 3장(바코드·제품·점등, 각 최대 5MB, PHOTO_MAX_BYTES) + 입력값. nginx 기본값 1MB로는 사진 업로드가 413으로 막힌다
+    client_max_body_size 20m;
 
     location / {
         proxy_pass http://duckil_barcode;

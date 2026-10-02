@@ -3,6 +3,8 @@
 import type { ApiErrorBody, ApiErrorCode } from '@/lib/types/api'
 import type {
   CreateRecordResponse,
+  DuplicateCheckResponse,
+  DuplicateRecordSummary,
   RecordDto,
   RecordListResponse,
 } from '@/lib/types/record'
@@ -12,18 +14,22 @@ export class ApiError extends Error {
   status: number
   code: ApiErrorCode
   fields?: Record<string, string>
+  // DUPLICATE_RAW_TEXT(409)일 때 이미 등록된 기록 요약
+  existing?: DuplicateRecordSummary
 
   constructor(
     status: number,
     code: ApiErrorCode,
     message: string,
-    fields?: Record<string, string>
+    fields?: Record<string, string>,
+    existing?: DuplicateRecordSummary
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
     this.fields = fields
+    this.existing = existing
   }
 }
 
@@ -57,7 +63,8 @@ async function request<T>(input: string, init?: RequestInit): Promise<T> {
         res.status,
         body.error.code,
         body.error.message,
-        body.error.fields
+        body.error.fields,
+        body.error.existing
       )
     }
     throw new ApiError(
@@ -91,6 +98,7 @@ export interface CreateRecordInput {
   memo?: string
   barcode_photo?: Blob
   product_photo?: Blob
+  lighting_photo?: Blob
 }
 
 // POST /api/records: 기록 생성 (multipart/form-data)
@@ -104,11 +112,23 @@ export async function createRecord(
   appendIfDefined(formData, 'memo', input.memo)
   appendIfDefined(formData, 'barcode_photo', input.barcode_photo)
   appendIfDefined(formData, 'product_photo', input.product_photo)
+  appendIfDefined(formData, 'lighting_photo', input.lighting_photo)
 
   return request<CreateRecordResponse>('/api/records', {
     method: 'POST',
     body: formData,
   })
+}
+
+// GET /api/records/duplicate: 원본 바코드 중복 즉시 확인 (Phase 7 Task 025).
+// 제어문자(GS·RS)가 섞인 원문도 URLSearchParams가 퍼센트 인코딩한다
+export async function checkDuplicateRaw(
+  rawText: string
+): Promise<DuplicateCheckResponse> {
+  const params = new URLSearchParams({ raw_text: rawText })
+  return request<DuplicateCheckResponse>(
+    `/api/records/duplicate?${params.toString()}`
+  )
 }
 
 export interface ListRecordsQuery {
@@ -145,6 +165,7 @@ export interface UpdateRecordInput {
   memo?: string
   barcode_photo?: Blob
   product_photo?: Blob
+  lighting_photo?: Blob
 }
 
 // PATCH /api/records/[id]: 부분 수정 (multipart/form-data). raw_text는 서버 스키마에 없어 보내도 무시된다
@@ -158,6 +179,7 @@ export async function updateRecord(
   appendIfDefined(formData, 'memo', input.memo)
   appendIfDefined(formData, 'barcode_photo', input.barcode_photo)
   appendIfDefined(formData, 'product_photo', input.product_photo)
+  appendIfDefined(formData, 'lighting_photo', input.lighting_photo)
 
   return request<RecordDto>(`/api/records/${id}`, {
     method: 'PATCH',

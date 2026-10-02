@@ -2,12 +2,13 @@
 import { MANUAL_RAW_TEXT } from '@/lib/constants'
 import type { RecordDto } from '@/lib/types/record'
 
-export type MockPhotoKind = 'barcode' | 'product'
+export type MockPhotoKind = 'barcode' | 'product' | 'lighting'
 
 // 더미 사진 경로(public/mock, 가로형: 바코드 3:1·제품 5:1). scan-flow·record-detail-view와 공유한다
 export const MOCK_PHOTO_URL: Record<MockPhotoKind, string> = {
   barcode: '/mock/barcode-sample.jpg',
   product: '/mock/product-sample.jpg',
+  lighting: '/mock/lighting-sample.jpg',
 }
 
 // 더미 사진 파일명(uuid.jpg)을 public/mock/ 샘플 이미지 경로로 바꾼다
@@ -282,8 +283,10 @@ export const MOCK_RECORDS: RecordDto[] = SEEDS.map((seed, index) => {
     product_no: seed.product_no,
     lot: seed.lot,
     memo: seed.memo ?? null,
-    barcode_photo: hasBarcode ? mockFilename(id * 2 - 1) : null,
-    product_photo: hasProduct ? mockFilename(id * 2) : null,
+    barcode_photo: hasBarcode ? mockFilename(id * 3 - 2) : null,
+    product_photo: hasProduct ? mockFilename(id * 3 - 1) : null,
+    // 사진이 모두 있는 기록만 점등 사진도 있는 것으로 둔다
+    lighting_photo: seed.photos === 'both' ? mockFilename(id * 3) : null,
     created_at: seed.created_at,
     updated_at: seed.updated_at ?? seed.created_at,
   }

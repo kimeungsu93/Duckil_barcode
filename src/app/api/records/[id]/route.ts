@@ -119,6 +119,7 @@ export async function PATCH(
   const patch: UpdateRecordPatch = { ...parsed.data }
   if (saved.barcode_photo) patch.barcode_photo = saved.barcode_photo
   if (saved.product_photo) patch.product_photo = saved.product_photo
+  if (saved.lighting_photo) patch.lighting_photo = saved.lighting_photo
 
   let updated
   try {
@@ -143,11 +144,14 @@ export async function PATCH(
   if (saved.product_photo && existing.product_photo) {
     await deletePhoto(existing.product_photo)
   }
+  if (saved.lighting_photo && existing.lighting_photo) {
+    await deletePhoto(existing.lighting_photo)
+  }
 
   return NextResponse.json(toRecordDto(updated))
 }
 
-// DELETE /api/records/[id]: DB row 삭제 후 사진 파일 2개를 삭제한다 (F4-4)
+// DELETE /api/records/[id]: DB row 삭제 후 사진 파일 3개를 삭제한다 (F4-4)
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -171,6 +175,7 @@ export async function DELETE(
 
   if (deleted.barcode_photo) await deletePhoto(deleted.barcode_photo)
   if (deleted.product_photo) await deletePhoto(deleted.product_photo)
+  if (deleted.lighting_photo) await deletePhoto(deleted.lighting_photo)
 
   return new NextResponse(null, { status: 204 })
 }

@@ -8,14 +8,19 @@ import { DoneStep } from './done-step'
 import { PhotoStep } from './photo-step'
 import { ScannerStep } from './scanner-step'
 import { ConfirmDialog } from '@/components/dialogs/confirm-dialog'
+import { DuplicateRawDialog } from '@/components/dialogs/duplicate-raw-dialog'
 import { AppHeader } from '@/components/layout/app-header'
 import { Container } from '@/components/layout/container'
 import type { PhotoSlotState } from '@/components/records/photo-slot'
 import { usePhotoCapture } from '@/components/records/use-photo-capture'
 import type { QrScannerErrorReason } from '@/components/scanner/qr-scanner'
-import { ApiError, createRecord } from '@/lib/api/records-client'
+import {
+  ApiError,
+  checkDuplicateRaw,
+  createRecord,
+} from '@/lib/api/records-client'
 import { isCameraSupported } from '@/lib/camera-support'
-import { PHOTO_DECODE_ERROR } from '@/lib/constants'
+import { MANUAL_RAW_TEXT, PHOTO_DECODE_ERROR } from '@/lib/constants'
 import { unlockAudio } from '@/lib/feedback'
 import {
   MOCK_PHOTO_URL,
@@ -23,6 +28,8 @@ import {
   type MockPhotoKind,
 } from '@/lib/mock/records'
 import { normalizeProductNo, parseQr } from '@/lib/qr-parser'
+import { toRawKey } from '@/lib/raw-key'
+import type { DuplicateRecordSummary } from '@/lib/types/record'
 
 export type ScanPreview =
   | 'denied'
@@ -34,6 +41,8 @@ export type ScanPreview =
   | 'no-photo'
 
 export type PhotoKind = MockPhotoKind
+// 스캐너 단계의 입력 수단. 기본은 PDA 하드웨어 스캐너, 카메라는 대체 (Phase 7 Task 024)
+export type ScanInput = 'pda' | 'camera'
 // checking: 카메라 지원 여부 확인 중 (마운트 effect가 ready/unsupported로 바꾼다)
 export type CameraStatus =
   | 'checking'
@@ -62,16 +71,14 @@ export interface ScanSaveInput {
   photos: Record<PhotoKind, File | null>
 }
 
-export interface ScanSaveResult {
-  duplicate: boolean
-}
-
 type Step = 'scanner' | 'confirm' | 'photos' | 'done'
 
 interface ScanState {
   step: Step
   camera: CameraStatus
-  mode: 'camera' | 'manual'
+  input: ScanInput
+  // scan: PDA·카메라로 원문을 읽음(원문 읽기 전용 표시), manual: 직접 입력
+  mode: 'scan' | 'manual'
   rawText: string
   parseFailed: boolean
   fields: ScanFields
@@ -90,6 +97,7 @@ type ScanAction =
   | { type: 'SAVE_SUCCESS'; photoCount: number }
   | { type: 'SAVE_FAIL' }
   | { type: 'SAVE_VALIDATION_ERROR'; fields: Record<string, string> }
+  | { type: 'SET_INPUT'; input: ScanInput }
   | { type: 'CAMERA_READY' }
   | { type: 'CAMERA_UNSUPPORTED' }
   | { type: 'CAMERA_ERROR'; reason: QrScannerErrorReason }
@@ -105,8 +113,8 @@ const EMPTY_FIELDS: ScanFields = {
 // 더미 사진 경로 (public/mock). preview 모드에서 사진 상태를 흉내낼 때만 쓴다
 const DUMMY_PHOTO_URL: Record<PhotoKind, string> = MOCK_PHOTO_URL
 
-// 더미 QR 인식 값. key-value 규칙으로 파싱되게 해서 자동 입력·정규화 동작을 그대로 보여준다
-// (ROADMAP Q1·Q15). 더미 목록(MOCK_RECORDS)에 없는 lot이라 저장해도 중복이 아니다
+// 더미 바코드 인식 값. key-value 규칙으로 파싱되게 해서 자동 입력·정규화 동작을 그대로 보여준다
+// (ROADMAP Q1·Q15). 더미 목록(MOCK_RECORDS)에 없는 원문이라 preview 모드에서 중복이 아니다
 const DUMMY_RAW_TEXT = 'PN:84739DC000G2E;LOT:2609290001'
 
 function buildDummyDetection(): ScanDetection {
@@ -127,13 +135,13 @@ const DUMMY_DETECTION: ScanDetection = buildDummyDetection()
 // 파싱 실패 미리보기용 원문 (규칙에 맞지 않는 형식)
 const UNPARSED_RAW_TEXT = 'DUCKIL#20260928#A7F3-UNKNOWN-FORMAT'
 
-function freshState(camera: CameraStatus): ScanState {
-  // 카메라 미지원이면 스캐너 없이 직접 입력 화면으로 바로 시작 (PRD §5 S-스캔-2)
-  const manual = camera === 'unsupported'
+// PDA 입력은 카메라 지원 여부와 무관하므로 항상 스캐너 단계에서 시작한다
+function freshState(camera: CameraStatus, input: ScanInput = 'pda'): ScanState {
   return {
-    step: manual ? 'confirm' : 'scanner',
+    step: 'scanner',
     camera,
-    mode: manual ? 'manual' : 'camera',
+    input,
+    mode: 'scan',
     rawText: '',
     parseFailed: false,
     fields: EMPTY_FIELDS,
@@ -145,8 +153,8 @@ function freshState(camera: CameraStatus): ScanState {
 
 // ?preview 값에 맞춰 해당 상태가 보이는 단계에서 시작한다 (개발 모드 전용)
 function initState(preview: ScanPreview | null): ScanState {
-  if (preview === 'denied') return freshState('denied')
-  if (preview === 'unsupported') return freshState('unsupported')
+  if (preview === 'denied') return freshState('denied', 'camera')
+  if (preview === 'unsupported') return freshState('unsupported', 'camera')
   if (preview === 'parse-fail') {
     return {
       ...freshState('ready'),
@@ -187,6 +195,12 @@ function initState(preview: ScanPreview | null): ScanState {
 // preview 모드에서 사진 슬롯이 보여야 할 더미 상태 (실제 파일은 없고 화면 표시 전용, Task 016).
 // 사용자가 슬롯을 건드리면(파일 선택·비우기) scan-flow가 해당 kind의 override를 지워
 // usePhotoCapture의 실제 상태로 넘어간다
+const EMPTY_OVERRIDE: Record<PhotoKind, PhotoSlotState | null> = {
+  barcode: null,
+  product: null,
+  lighting: null,
+}
+
 function previewPhotoOverride(
   preview: ScanPreview | null
 ): Record<PhotoKind, PhotoSlotState | null> {
@@ -194,15 +208,17 @@ function previewPhotoOverride(
     return {
       barcode: { status: 'error', error: PHOTO_DECODE_ERROR },
       product: { status: 'preview', url: DUMMY_PHOTO_URL.product },
+      lighting: { status: 'preview', url: DUMMY_PHOTO_URL.lighting },
     }
   }
   if (preview === 'save-error' || preview === 'duplicate') {
     return {
       barcode: { status: 'preview', url: DUMMY_PHOTO_URL.barcode },
       product: { status: 'preview', url: DUMMY_PHOTO_URL.product },
+      lighting: { status: 'preview', url: DUMMY_PHOTO_URL.lighting },
     }
   }
-  return { barcode: null, product: null }
+  return EMPTY_OVERRIDE
 }
 
 function reducer(state: ScanState, action: ScanAction): ScanState {
@@ -214,7 +230,7 @@ function reducer(state: ScanState, action: ScanAction): ScanState {
       return {
         ...state,
         step: 'confirm',
-        mode: 'camera',
+        mode: 'scan',
         rawText,
         parseFailed: !success,
         serverErrors: null,
@@ -245,9 +261,7 @@ function reducer(state: ScanState, action: ScanAction): ScanState {
       }
     case 'BACK':
       if (state.step === 'photos') return { ...state, step: 'confirm' }
-      if (state.step === 'confirm' && state.camera !== 'unsupported') {
-        return { ...state, step: 'scanner' }
-      }
+      if (state.step === 'confirm') return { ...state, step: 'scanner' }
       return state
     case 'SAVE_START':
       return { ...state, saving: true }
@@ -269,11 +283,13 @@ function reducer(state: ScanState, action: ScanAction): ScanState {
         step: 'done',
         result: { fields: state.fields, photoCount: action.photoCount },
       }
+    case 'SET_INPUT':
+      return { ...state, input: action.input }
     case 'CAMERA_READY':
       return { ...state, camera: 'ready' }
     case 'CAMERA_UNSUPPORTED':
-      // 미지원이면 카메라 없이 바로 직접 입력 화면으로 전환한다 (PRD §5 S-스캔-2)
-      return { ...freshState('unsupported') }
+      // 카메라를 고르면 미지원 안내가 보인다. PDA 입력·직접 입력은 그대로 쓸 수 있다 (PRD §5 S-스캔-2)
+      return { ...state, camera: 'unsupported' }
     case 'CAMERA_ERROR': {
       // unknown 사유는 denied 화면 문구를 재사용한다
       const camera: CameraStatus =
@@ -281,43 +297,97 @@ function reducer(state: ScanState, action: ScanAction): ScanState {
       return { ...state, camera }
     }
     case 'RESET':
-      return freshState(state.camera === 'checking' ? 'ready' : state.camera)
+      return freshState(
+        state.camera === 'checking' ? 'ready' : state.camera,
+        state.input
+      )
+  }
+}
+
+// 더미 목록에서 같은 원본 바코드(toRawKey 기준)를 찾는다 (preview 모드 전용)
+function findMockDuplicate(rawText: string): DuplicateRecordSummary | null {
+  const key = toRawKey(rawText)
+  if (key === null) return null
+  const record = MOCK_RECORDS.find(item => toRawKey(item.raw_text) === key)
+  if (!record) return null
+  const { id, product_no, lot, created_at } = record
+  return { id, product_no, lot, created_at }
+}
+
+// 원본 바코드 중복 확인. preview 모드는 더미 목록, 아니면 GET /api/records/duplicate.
+// 확인 요청이 실패하면 진행을 막지 않고 null을 돌려준다 (최종 차단은 저장 시 409, Phase 7 Task 025)
+async function findDuplicate(
+  rawText: string,
+  preview: ScanPreview | null
+): Promise<DuplicateRecordSummary | null> {
+  if (toRawKey(rawText) === null) return null
+  if (preview) return findMockDuplicate(rawText)
+  try {
+    const result = await checkDuplicateRaw(rawText)
+    return result.existing ?? null
+  } catch (error) {
+    console.warn(
+      '[scan] 중복 확인 실패, 저장 시 서버에서 다시 확인합니다',
+      error
+    )
+    return null
   }
 }
 
 // 더미 저장: 0.8초 뒤 결과를 돌려준다 (preview 모드 전용, S-코드 확인용)
 function createDummySave(preview: ScanPreview | null) {
-  return async ({ fields }: ScanSaveInput): Promise<ScanSaveResult> => {
+  return async ({ fields }: ScanSaveInput): Promise<void> => {
     await new Promise(resolve => setTimeout(resolve, 800))
     if (preview === 'save-error') throw new Error('더미 저장 실패')
-    // 중복 판정: trim 후 대소문자까지 일치 (ROADMAP Q9)
-    const duplicate = MOCK_RECORDS.some(
-      record =>
-        record.product_no === fields.product_no.trim() &&
-        record.lot === fields.lot.trim()
-    )
-    return { duplicate }
+    // 서버와 같은 기준으로 원본 바코드 중복이면 409를 흉내낸다
+    const existing = findMockDuplicate(fields.raw_text)
+    if (existing) {
+      throw new ApiError(
+        409,
+        'DUPLICATE_RAW_TEXT',
+        '이미 등록된 바코드입니다',
+        undefined,
+        existing
+      )
+    }
   }
 }
 
 // 실제 저장: POST /api/records 호출 (Task 016)
-async function saveViaApi({
-  fields,
-  photos,
-}: ScanSaveInput): Promise<ScanSaveResult> {
-  const response = await createRecord({
+async function saveViaApi({ fields, photos }: ScanSaveInput): Promise<void> {
+  await createRecord({
     raw_text: fields.raw_text,
     product_no: fields.product_no,
     lot: fields.lot,
     memo: fields.memo || undefined,
     barcode_photo: photos.barcode ?? undefined,
     product_photo: photos.product ?? undefined,
+    lighting_photo: photos.lighting ?? undefined,
   })
-  return { duplicate: response.duplicate }
+}
+
+// 마지막으로 고른 스캔 입력 수단을 기억한다 (기기별 편의 설정이라 localStorage)
+const SCAN_INPUT_STORAGE_KEY = 'duckil.scanInput'
+
+function readStoredInput(): ScanInput | null {
+  try {
+    const value = window.localStorage.getItem(SCAN_INPUT_STORAGE_KEY)
+    return value === 'pda' || value === 'camera' ? value : null
+  } catch {
+    return null
+  }
+}
+
+function storeInput(input: ScanInput): void {
+  try {
+    window.localStorage.setItem(SCAN_INPUT_STORAGE_KEY, input)
+  } catch {
+    // 저장소를 쓸 수 없는 브라우저면 기억하지 않는다
+  }
 }
 
 const STEP_LABELS: Partial<Record<Step, { index: number; label: string }>> = {
-  scanner: { index: 1, label: 'QR 스캔' },
+  scanner: { index: 1, label: '바코드 스캔' },
   confirm: { index: 2, label: '정보 확인' },
   photos: { index: 3, label: '사진 촬영' },
 }
@@ -326,14 +396,15 @@ const STEP_TOTAL = 3
 interface ScanFlowProps {
   preview: ScanPreview | null
   // 저장 동작. 지정하지 않으면 preview 여부에 따라 더미 저장 또는 실제 API 저장을 쓴다
-  onSave?: (input: ScanSaveInput) => Promise<ScanSaveResult>
+  onSave?: (input: ScanSaveInput) => Promise<void>
 }
 
-// 스캔 → 정보 확인 → 사진 2장 → 저장 완료 단계 흐름 컨테이너
+// 스캔 → 정보 확인 → 사진 3장 → 저장 완료 단계 흐름 컨테이너
 export function ScanFlow({ preview, onSave }: ScanFlowProps) {
   const [state, dispatch] = useReducer(reducer, preview, initState)
   const barcodePhoto = usePhotoCapture()
   const productPhoto = usePhotoCapture()
+  const lightingPhoto = usePhotoCapture()
   // preview 모드 전용 더미 사진 표시. 사용자가 슬롯을 건드리면 해당 kind만 null로 지워
   // 실제 usePhotoCapture 상태가 보이게 한다
   const [previewOverride, setPreviewOverride] = useState<
@@ -344,6 +415,11 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
   )
   const [noPhotoConfirmOpen, setNoPhotoConfirmOpen] = useState(false)
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false)
+  // 원본 바코드 중복 경고 대상 (null이면 닫힘)
+  const [duplicate, setDuplicate] = useState<DuplicateRecordSummary | null>(
+    null
+  )
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false)
   // 다음 스캔 시작 시 값을 올려 스캐너를 강제로 다시 마운트한다 (카메라 재시작)
   const [scannerKey, setScannerKey] = useState(0)
   const router = useRouter()
@@ -357,7 +433,59 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
     } else {
       dispatch({ type: 'CAMERA_UNSUPPORTED' })
     }
+    // 서버 렌더와 첫 렌더를 맞추기 위해 저장된 입력 수단은 마운트 후에 반영한다
+    const stored = readStoredInput()
+    if (stored) dispatch({ type: 'SET_INPUT', input: stored })
   }, [preview])
+
+  function handleInputChange(input: ScanInput) {
+    storeInput(input)
+    dispatch({ type: 'SET_INPUT', input })
+    // 이전에 권한 거부·장치 없음으로 실패했어도 카메라를 다시 고르면 한 번 더 시도한다
+    if (
+      input === 'camera' &&
+      !preview &&
+      (state.camera === 'denied' || state.camera === 'not-found') &&
+      isCameraSupported()
+    ) {
+      dispatch({ type: 'CAMERA_READY' })
+    }
+  }
+
+  // 스캔(PDA·카메라) 직후 원본 바코드 중복을 먼저 확인하고, 중복이면 경고만 띄우고 진행하지 않는다
+  async function handleDetected(rawText: string) {
+    if (checkingDuplicate) return
+    setCheckingDuplicate(true)
+    const existing = await findDuplicate(rawText, preview)
+    setCheckingDuplicate(false)
+    if (existing) {
+      setDuplicate(existing)
+      return
+    }
+    dispatch({ type: 'DETECTED', rawText })
+  }
+
+  // 직접 입력은 원문을 입력한 경우에만 확인 단계에서 넘어갈 때 중복을 확인한다
+  async function handleConfirm(fields: ScanFields) {
+    if (state.mode === 'manual' && fields.raw_text !== MANUAL_RAW_TEXT) {
+      const existing = await findDuplicate(fields.raw_text, preview)
+      if (existing) {
+        setDuplicate(existing)
+        return
+      }
+    }
+    dispatch({ type: 'CONFIRM', fields })
+  }
+
+  // 중복 경고에서 다시 스캔: 확인·사진 단계였다면 처음부터, 스캐너 단계면 스캐너만 다시 시작한다
+  function handleDuplicateRescan() {
+    setDuplicate(null)
+    if (state.step === 'scanner') {
+      setScannerKey(key => key + 1)
+      return
+    }
+    handleNextScan()
+  }
 
   // 정보 확인·사진 단계에서 나가면 입력값이 사라지므로 한 번 확인한다
   function handleLeave() {
@@ -368,7 +496,12 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
     router.push('/')
   }
 
-  const photoCaptures = { barcode: barcodePhoto, product: productPhoto }
+  const photoCaptures = {
+    barcode: barcodePhoto,
+    product: productPhoto,
+    lighting: lightingPhoto,
+  }
+  const photoKinds = Object.keys(photoCaptures) as PhotoKind[]
 
   function handleFileSelected(kind: PhotoKind, file: File) {
     setPreviewOverride(prev => ({ ...prev, [kind]: null }))
@@ -391,19 +524,32 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
   async function runSave() {
     dispatch({ type: 'SAVE_START' })
     try {
-      const result = await save({
+      await save({
         fields: state.fields,
-        photos: { barcode: barcodePhoto.file, product: productPhoto.file },
+        photos: {
+          barcode: barcodePhoto.file,
+          product: productPhoto.file,
+          lighting: lightingPhoto.file,
+        },
       })
-      const photoCount = [hasPhoto('barcode'), hasPhoto('product')].filter(
-        Boolean
-      ).length
+      const photoCount = photoKinds.filter(hasPhoto).length
       dispatch({ type: 'SAVE_SUCCESS', photoCount })
       toast.success('저장되었습니다')
-      // 중복이어도 저장은 되고, 성공 토스트와 별도로 경고한다 (ROADMAP Q4)
-      if (result.duplicate) toast.warning('중복 기록이 있습니다')
     } catch (error) {
       if (error instanceof ApiError) {
+        // 409: 원본 바코드 중복이면 저장하지 않고 경고 다이얼로그를 띄운다 (PRD F4-6)
+        if (error.code === 'DUPLICATE_RAW_TEXT') {
+          dispatch({ type: 'SAVE_FAIL' })
+          setDuplicate(
+            error.existing ?? {
+              id: 0,
+              product_no: state.fields.product_no,
+              lot: state.fields.lot,
+              created_at: '',
+            }
+          )
+          return
+        }
         // 400 VALIDATION_ERROR: 확인 단계로 돌아가 필드 오류를 표시한다
         if (error.code === 'VALIDATION_ERROR' && error.fields) {
           dispatch({ type: 'SAVE_VALIDATION_ERROR', fields: error.fields })
@@ -417,11 +563,9 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
           error.fields
         ) {
           dispatch({ type: 'SAVE_FAIL' })
-          if (error.fields.barcode_photo) {
-            barcodePhoto.setError(error.fields.barcode_photo)
-          }
-          if (error.fields.product_photo) {
-            productPhoto.setError(error.fields.product_photo)
+          for (const kind of photoKinds) {
+            const message = error.fields[`${kind}_photo`]
+            if (message) photoCaptures[kind].setError(message)
           }
           toast.error(error.message)
           return
@@ -438,7 +582,7 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
 
   function handleSave() {
     // 사진 누락 여부는 화면에 보이는 슬롯 상태 기준으로 판단한다 (preview 모드 회귀 수정)
-    const missing = !hasPhoto('barcode') || !hasPhoto('product')
+    const missing = photoKinds.some(kind => !hasPhoto(kind))
     // 사진은 선택 항목이라 확인만 받고 저장을 허용한다 (PRD §5 S-스캔-7)
     if (missing) {
       setNoPhotoConfirmOpen(true)
@@ -449,9 +593,8 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
 
   function handleNextScan() {
     dispatch({ type: 'RESET' })
-    barcodePhoto.reset()
-    productPhoto.reset()
-    setPreviewOverride({ barcode: null, product: null })
+    for (const kind of photoKinds) photoCaptures[kind].reset()
+    setPreviewOverride(EMPTY_OVERRIDE)
     unlockAudio()
     setScannerKey(key => key + 1)
   }
@@ -482,8 +625,11 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
             {state.step === 'scanner' && (
               <ScannerStep
                 key={scannerKey}
+                input={state.input}
+                onInputChange={handleInputChange}
                 camera={state.camera}
-                onDetected={rawText => dispatch({ type: 'DETECTED', rawText })}
+                busy={checkingDuplicate || duplicate !== null}
+                onDetected={rawText => void handleDetected(rawText)}
                 onCameraError={reason =>
                   dispatch({ type: 'CAMERA_ERROR', reason })
                 }
@@ -499,17 +645,12 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
             {state.step === 'confirm' && (
               <ConfirmStep
                 mode={state.mode}
-                camera={state.camera}
                 rawText={state.rawText}
                 parseFailed={state.parseFailed}
                 defaultValues={state.fields}
                 serverErrors={state.serverErrors}
-                onConfirm={fields => dispatch({ type: 'CONFIRM', fields })}
-                onBack={
-                  state.camera === 'unsupported'
-                    ? undefined
-                    : () => dispatch({ type: 'BACK' })
-                }
+                onConfirm={fields => void handleConfirm(fields)}
+                onBack={() => dispatch({ type: 'BACK' })}
               />
             )}
 
@@ -518,10 +659,12 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
                 photos={{
                   barcode: previewOverride.barcode ?? barcodePhoto.slot,
                   product: previewOverride.product ?? productPhoto.slot,
+                  lighting: previewOverride.lighting ?? lightingPhoto.slot,
                 }}
                 busy={{
                   barcode: barcodePhoto.busy,
                   product: productPhoto.busy,
+                  lighting: lightingPhoto.busy,
                 }}
                 saving={state.saving}
                 onFileSelected={handleFileSelected}
@@ -539,6 +682,10 @@ export function ScanFlow({ preview, onSave }: ScanFlowProps) {
               />
             )}
 
+            <DuplicateRawDialog
+              existing={duplicate}
+              onRescan={handleDuplicateRescan}
+            />
             <ConfirmDialog
               open={noPhotoConfirmOpen}
               onOpenChange={setNoPhotoConfirmOpen}

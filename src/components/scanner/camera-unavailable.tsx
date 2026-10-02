@@ -18,7 +18,7 @@ const MESSAGES: Record<
     description:
       '브라우저 설정에서 카메라 권한을 허용하거나, 제품 정보를 직접 입력해주세요',
   },
-  // PRD §5 S-스캔-2 (비-HTTPS 포함). 흐름에서는 곧바로 직접 입력 화면으로 전환한다
+  // PRD §5 S-스캔-2 (비-HTTPS 포함). 카메라로 전환했을 때만 보인다 (PDA 입력은 그대로 사용 가능)
   unsupported: {
     title: '이 브라우저에서는 카메라를 사용할 수 없습니다',
     description: '제품 정보를 직접 입력해주세요',

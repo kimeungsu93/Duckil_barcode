@@ -1,5 +1,5 @@
 // 데이터 정합성 검사 스크립트 (ROADMAP Phase 5 Task 020)
-// data/uploads/의 파일 목록과 DB(records.barcode_photo, records.product_photo)가
+// data/uploads/의 파일 목록과 DB(records.barcode_photo, records.product_photo, records.lighting_photo)가
 // 정확히 일치하는지 확인한다: 고아 파일(어떤 row도 가리키지 않는 파일)과
 // 고아 레코드(row가 가리키지만 실제 파일이 없는 경우)가 하나도 없어야 통과.
 //
@@ -38,7 +38,7 @@ interface OrphanFile {
 // DB row가 가리키지만 uploads에 실제 파일이 없는 경우
 interface OrphanRecord {
   id: number
-  field: 'barcode_photo' | 'product_photo'
+  field: 'barcode_photo' | 'product_photo' | 'lighting_photo'
   filename: string
 }
 
@@ -106,10 +106,19 @@ try {
 
 // ── 1. DB에서 사진 참조 수집 ───────────────────────────────────────────
 const rows = db
-  .prepare('SELECT id, barcode_photo, product_photo FROM records')
-  .all() as Pick<RecordRow, 'id' | 'barcode_photo' | 'product_photo'>[]
+  .prepare(
+    'SELECT id, barcode_photo, product_photo, lighting_photo FROM records'
+  )
+  .all() as Pick<
+  RecordRow,
+  'id' | 'barcode_photo' | 'product_photo' | 'lighting_photo'
+>[]
 
-const photoFields = ['barcode_photo', 'product_photo'] as const
+const photoFields = [
+  'barcode_photo',
+  'product_photo',
+  'lighting_photo',
+] as const
 type PhotoField = (typeof photoFields)[number]
 
 // 파일명 → 참조한 row id 목록 (한 파일을 여러 row가 가리키는 경우는 없어야 정상이지만,
@@ -172,7 +181,7 @@ if (jsonOutput) {
   console.log('\n--- 요약 ---')
   console.log(`기록 수(records): ${result.recordCount}`)
   console.log(
-    `사진 참조 수(barcode_photo+product_photo, NULL 제외): ${result.photoRefCount}`
+    `사진 참조 수(barcode_photo+product_photo+lighting_photo, NULL 제외): ${result.photoRefCount}`
   )
   console.log(`uploads 파일 수: ${result.uploadFileCount}`)
   console.log(

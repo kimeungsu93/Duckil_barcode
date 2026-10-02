@@ -27,7 +27,7 @@ export function PhotoStep({
   onSave,
   onBack,
 }: PhotoStepProps) {
-  const anyBusy = busy.barcode || busy.product
+  const anyBusy = Object.values(busy).some(Boolean)
 
   return (
     <div className="flex flex-col gap-4">

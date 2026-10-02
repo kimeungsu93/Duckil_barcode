@@ -24,7 +24,7 @@ import { updateRecordSchema } from '@/lib/schemas/record'
 import { formatKstDisplay, nowKstIso } from '@/lib/time'
 import type { RecordDto } from '@/lib/types/record'
 
-type PhotoKind = 'barcode' | 'product'
+type PhotoKind = 'barcode' | 'product' | 'lighting'
 type UpdateInput = z.input<typeof updateRecordSchema>
 type UpdateOutput = z.output<typeof updateRecordSchema>
 type UpdateFieldKey = keyof UpdateOutput
@@ -74,6 +74,7 @@ export function RecordDetailView({
   const [photos, setPhotos] = useState<Record<PhotoKind, PhotoSlotState>>({
     barcode: toSlotState(photoUrls.barcode),
     product: toSlotState(photoUrls.product),
+    lighting: toSlotState(photoUrls.lighting),
   })
   // 프리뷰 모드에서만 쓰는 표시용 수정 시각 (실제 모드는 저장 성공 후 router.refresh + key 리마운트로 갱신)
   const [updatedAt, setUpdatedAt] = useState(record.updated_at)
@@ -83,6 +84,13 @@ export function RecordDetailView({
   // 실제 모드에서 쓰는 사진 슬롯. 훅 호출 순서를 지키기 위해 프리뷰 모드에서도 항상 호출한다
   const barcodePhoto = usePhotoCapture({ initialUrl: photoUrls.barcode })
   const productPhoto = usePhotoCapture({ initialUrl: photoUrls.product })
+  const lightingPhoto = usePhotoCapture({ initialUrl: photoUrls.lighting })
+  const photoCaptures = {
+    barcode: barcodePhoto,
+    product: productPhoto,
+    lighting: lightingPhoto,
+  }
+  const photoKinds = Object.keys(photoCaptures) as PhotoKind[]
 
   const form = useForm<UpdateInput, unknown, UpdateOutput>({
     resolver: zodResolver(updateRecordSchema),
@@ -95,7 +103,7 @@ export function RecordDetailView({
 
   const photoChanged = isPreview
     ? replaced.length > 0
-    : barcodePhoto.file !== null || productPhoto.file !== null
+    : photoKinds.some(kind => photoCaptures[kind].file !== null)
   const dirty = form.formState.isDirty || photoChanged
 
   const busy = saving || deleting
@@ -121,11 +129,9 @@ export function RecordDetailView({
       if (error.fields) {
         let handled = false
         for (const [field, message] of Object.entries(error.fields)) {
-          if (field === 'barcode_photo') {
-            barcodePhoto.setError(message)
-            handled = true
-          } else if (field === 'product_photo') {
-            productPhoto.setError(message)
+          const photoKind = photoKinds.find(kind => field === `${kind}_photo`)
+          if (photoKind) {
+            photoCaptures[photoKind].setError(message)
             handled = true
           } else if (
             field === 'product_no' ||
@@ -165,8 +171,10 @@ export function RecordDetailView({
 
       const fields = pickDirtyFields(values)
       const photosInput: Partial<Record<PhotoKind, File>> = {}
-      if (barcodePhoto.file) photosInput.barcode = barcodePhoto.file
-      if (productPhoto.file) photosInput.product = productPhoto.file
+      for (const kind of photoKinds) {
+        const file = photoCaptures[kind].file
+        if (file) photosInput[kind] = file
+      }
 
       if (onSave) {
         await onSave({ fields, photos: photosInput })
@@ -175,6 +183,7 @@ export function RecordDetailView({
           ...fields,
           barcode_photo: photosInput.barcode,
           product_photo: photosInput.product,
+          lighting_photo: photosInput.lighting,
         })
       }
       form.reset(values)
@@ -252,13 +261,11 @@ export function RecordDetailView({
               key={kind}
               label={label}
               hint={hint}
-              state={kind === 'barcode' ? barcodePhoto.slot : productPhoto.slot}
+              state={photoCaptures[kind].slot}
               // onFileSelected를 넘기므로 onCapture는 쓰이지 않는다
               onCapture={() => {}}
-              onFileSelected={
-                kind === 'barcode' ? barcodePhoto.select : productPhoto.select
-              }
-              busy={kind === 'barcode' ? barcodePhoto.busy : productPhoto.busy}
+              onFileSelected={photoCaptures[kind].select}
+              busy={photoCaptures[kind].busy}
               disabled={busy}
             />
           )

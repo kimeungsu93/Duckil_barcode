@@ -53,6 +53,8 @@ async function main() {
       memo: '바코드 사진(3:1)만 있음',
       barcode_photo: barcodeUuid,
       product_photo: null,
+      lighting_photo: null,
+      raw_key: null,
       created_at: now,
       updated_at: now,
     },
@@ -61,9 +63,11 @@ async function main() {
       raw_text: 'RAW-2',
       product_no: 'P-2',
       lot: 'L-2',
-      memo: '제품 사진(5:1)만 있음',
+      memo: '제품 사진(5:1) + 점등 사진(3:1)',
       barcode_photo: null,
       product_photo: productUuid,
+      lighting_photo: barcodeUuid,
+      raw_key: 'RAW-2',
       created_at: now,
       updated_at: now,
     },
@@ -75,6 +79,8 @@ async function main() {
       memo: null,
       barcode_photo: null,
       product_photo: null,
+      lighting_photo: null,
+      raw_key: null,
       created_at: now,
       updated_at: now,
     },
@@ -86,6 +92,8 @@ async function main() {
       memo: '파일이 사라진 경우',
       barcode_photo: missingUuid,
       product_photo: null,
+      lighting_photo: null,
+      raw_key: null,
       created_at: now,
       updated_at: now,
     },
@@ -116,9 +124,16 @@ async function main() {
     JSON.stringify(noValues)
   )
 
-  // 헤더 스타일: 굵게·배경색·테두리·가운데 정렬 (8개 컬럼 전부)
+  // 헤더 9개 컬럼, 9번째는 점등 사진 (Phase 7 Task 026)
+  check(
+    '9번째 헤더 = 점등 사진',
+    worksheet.getCell(1, 9).value === '점등 사진',
+    String(worksheet.getCell(1, 9).value)
+  )
+
+  // 헤더 스타일: 굵게·배경색·테두리·가운데 정렬 (9개 컬럼 전부)
   let headerStyleOk = true
-  for (let col = 1; col <= 8; col++) {
+  for (let col = 1; col <= 9; col++) {
     const cell = worksheet.getCell(1, col)
     if (
       cell.font?.bold !== true ||
@@ -135,9 +150,9 @@ async function main() {
   }
   check('헤더 스타일(굵게·배경·테두리·가운데정렬)', headerStyleOk)
 
-  // 이미지 개수: barcode(행2) + product(행3) = 2. 행4(사진 없음)·행5(파일 없음)는 이미지가 없어야 한다
+  // 이미지 개수: barcode(행2) + product·lighting(행3) = 3. 행4(사진 없음)·행5(파일 없음)는 이미지가 없어야 한다
   const images = worksheet.getImages()
-  check('이미지 개수', images.length === 2, `count=${images.length}`)
+  check('이미지 개수', images.length === 3, `count=${images.length}`)
 
   // 각 이미지가 240x90 상자를 넘지 않고, 원본 비율과 1% 이내로 일치하는지
   const expectations = [
@@ -155,6 +170,13 @@ async function main() {
       height: 160,
       label: '제품 사진(5:1, row3)',
     }, // row=2(3행), col=7(8번째 열)
+    {
+      nativeRow: 2,
+      nativeCol: 8,
+      width: 800,
+      height: 267,
+      label: '점등 사진(3:1, row3)',
+    }, // row=2(3행), col=8(9번째 열)
   ]
 
   for (const exp of expectations) {

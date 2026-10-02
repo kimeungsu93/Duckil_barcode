@@ -1,8 +1,11 @@
+import type { DuplicateRecordSummary } from '@/lib/types/record'
+
 // API 에러 코드 (PRD §4). 코드를 추가하면 src/lib/api-error.ts도 함께 확인한다.
 export type ApiErrorCode =
   | 'VALIDATION_ERROR' // 400
   | 'INVALID_FILENAME' // 400
   | 'NOT_FOUND' // 404
+  | 'DUPLICATE_RAW_TEXT' // 409 (원본 바코드 중복)
   | 'PAYLOAD_TOO_LARGE' // 413
   | 'UNSUPPORTED_MEDIA_TYPE' // 415
   | 'TOO_MANY_RECORDS' // 422
@@ -14,5 +17,6 @@ export interface ApiErrorBody {
     code: ApiErrorCode
     message: string
     fields?: Record<string, string> // 필드별 검증 메시지
+    existing?: DuplicateRecordSummary // DUPLICATE_RAW_TEXT일 때 기존 기록
   }
 }

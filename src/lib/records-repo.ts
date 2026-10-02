@@ -1,12 +1,14 @@
-// 서버 전용 - records 테이블 CRUD·검색·기간 조회 리포지토리 (PRD §6, §8, ROADMAP Q2·Q9·Q13·Q16)
+// 서버 전용 - records 테이블 CRUD·검색·기간 조회 리포지토리 (PRD §6, §8, ROADMAP Q2·Q9·Q13·Q16, Phase 7)
 import 'server-only'
 import { getDb } from '@/lib/db'
+import { toRawKey } from '@/lib/raw-key'
 import { kstDayStart, kstNextDayStart, nowKstIso } from '@/lib/time'
 import type { RecordRow } from '@/lib/types/record'
 
 // 뒤 작업(Task 011 API 라우트 등)이 쓰기 좋게 입력·패치 타입을 export한다
 
 // POST /api/records: 사진 파일명은 저장(storage.ts) 이후 결정되므로 선택값으로 받는다
+// raw_key는 raw_text에서 계산하므로 입력으로 받지 않는다 (src/lib/raw-key.ts)
 export interface InsertRecordInput {
   raw_text: string
   product_no: string
@@ -14,6 +16,7 @@ export interface InsertRecordInput {
   memo?: string | null
   barcode_photo?: string | null
   product_photo?: string | null
+  lighting_photo?: string | null
 }
 
 // PATCH /api/records/[id]: 보낸 키만 UPDATE SET에 반영한다 (raw_text는 생성 후 변경 불가)
@@ -23,6 +26,7 @@ export interface UpdateRecordPatch {
   memo?: string | null
   barcode_photo?: string | null
   product_photo?: string | null
+  lighting_photo?: string | null
 }
 
 // GET /api/records 쿼리
@@ -46,6 +50,7 @@ const UPDATABLE_COLUMNS = [
   'memo',
   'barcode_photo',
   'product_photo',
+  'lighting_photo',
 ] as const
 
 // LIKE 검색 입력의 와일드카드·이스케이프 문자를 리터럴로 취급되게 이스케이프한다
@@ -93,18 +98,20 @@ export function insertRecord(input: InsertRecordInput): RecordRow {
   return getDb()
     .prepare(
       `INSERT INTO records
-         (raw_text, product_no, lot, memo, barcode_photo, product_photo, created_at, updated_at)
+         (raw_text, raw_key, product_no, lot, memo, barcode_photo, product_photo, lighting_photo, created_at, updated_at)
        VALUES
-         (@raw_text, @product_no, @lot, @memo, @barcode_photo, @product_photo, @now, @now)
+         (@raw_text, @raw_key, @product_no, @lot, @memo, @barcode_photo, @product_photo, @lighting_photo, @now, @now)
        RETURNING *`
     )
     .get({
       raw_text: input.raw_text,
+      raw_key: toRawKey(input.raw_text),
       product_no: input.product_no,
       lot: input.lot,
       memo: input.memo ?? null,
       barcode_photo: input.barcode_photo ?? null,
       product_photo: input.product_photo ?? null,
+      lighting_photo: input.lighting_photo ?? null,
       now,
     }) as RecordRow
 }
@@ -171,7 +178,7 @@ export function updateRecord(
     .get(params) as RecordRow | undefined
 }
 
-// 삭제된 row를 반환한다(파일 삭제는 호출 측(API 라우트)에서 이 반환값의 barcode_photo/product_photo로 처리).
+// 삭제된 row를 반환한다(파일 삭제는 호출 측(API 라우트)에서 이 반환값의 barcode_photo/product_photo/lighting_photo로 처리).
 // 대상이 없으면 undefined
 export function deleteRecord(id: number): RecordRow | undefined {
   return getDb()
@@ -179,16 +186,23 @@ export function deleteRecord(id: number): RecordRow | undefined {
     .get({ id }) as RecordRow | undefined
 }
 
-// 중복 판정(Q9): trim한 product_no·lot이 대소문자까지 정확히 일치할 때만 true.
-// 검색(F4-3, Q13)과 기준이 다르므로 LIKE가 아닌 = 비교를 쓴다
-export function existsByProductLot(productNo: string, lot: string): boolean {
-  const row = getDb()
-    .prepare(
-      'SELECT 1 FROM records WHERE product_no = @productNo AND lot = @lot LIMIT 1'
-    )
-    .pluck()
-    .get({ productNo: productNo.trim(), lot: lot.trim() })
-  return row !== undefined
+// 원본 바코드 중복 조회 (Phase 7 Task 025): raw_text를 toRawKey로 정규화한 값이 같은 기록을 찾는다.
+// 직접 입력·빈 값은 판정 대상이 아니므로 undefined
+export function findByRawText(rawText: string): RecordRow | undefined {
+  const key = toRawKey(rawText)
+  if (key === null) return undefined
+  return getDb()
+    .prepare('SELECT * FROM records WHERE raw_key = @key ORDER BY id LIMIT 1')
+    .get({ key }) as RecordRow | undefined
+}
+
+// INSERT가 raw_key UNIQUE 인덱스에 걸렸는지 (동시 요청 경합 시)
+export function isRawKeyConflict(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error as Error & { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE' &&
+    error.message.includes('raw_key')
+  )
 }
 
 // Excel 내보내기용 전체 목록: 스캔 순서(created_at ASC, id ASC)로 반환한다 (Q16)

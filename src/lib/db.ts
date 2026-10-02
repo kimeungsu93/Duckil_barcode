@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { env, UPLOAD_DIR } from '@/lib/env'
+import { toRawKey } from '@/lib/raw-key'
 
 type Db = Database.Database
 
@@ -30,6 +31,41 @@ const MIGRATIONS: ((db: Db) => void)[] = [
       CREATE INDEX IF NOT EXISTS idx_records_created ON records(created_at);
       CREATE INDEX IF NOT EXISTS idx_records_product_lot ON records(product_no, lot);
     `),
+  // v1 → v2: 원본 바코드 중복 차단용 raw_key 컬럼 (ROADMAP Phase 7 Task 025)
+  db => {
+    db.exec('ALTER TABLE records ADD COLUMN raw_key TEXT')
+    const rows = db.prepare('SELECT id, raw_text FROM records').all() as {
+      id: number
+      raw_text: string
+    }[]
+    const fill = db.prepare('UPDATE records SET raw_key = @key WHERE id = @id')
+    for (const row of rows)
+      fill.run({ id: row.id, key: toRawKey(row.raw_text) })
+
+    // 기존 데이터에 중복이 있으면 UNIQUE 인덱스 생성이 실패해 앱이 뜨지 않으므로 일반 인덱스로 대신한다.
+    // 이 경우에도 새 중복은 POST /api/records의 사전 조회로 막는다 (scripts/check-duplicate-raw.ts로 확인)
+    const dupCount = db
+      .prepare(
+        `SELECT COUNT(*) FROM (
+           SELECT raw_key FROM records WHERE raw_key IS NOT NULL
+           GROUP BY raw_key HAVING COUNT(*) > 1
+         )`
+      )
+      .pluck()
+      .get() as number
+    if (dupCount === 0) {
+      db.exec(
+        'CREATE UNIQUE INDEX idx_records_raw_key ON records(raw_key) WHERE raw_key IS NOT NULL'
+      )
+    } else {
+      console.warn(
+        `[db] 원본 바코드 중복 ${dupCount}묶음이 있어 UNIQUE 대신 일반 인덱스를 만듭니다 (scripts/check-duplicate-raw.ts 참고)`
+      )
+      db.exec('CREATE INDEX idx_records_raw_key ON records(raw_key)')
+    }
+  },
+  // v2 → v3: 점등 사진 컬럼 (ROADMAP Phase 7 Task 026)
+  db => db.exec('ALTER TABLE records ADD COLUMN lighting_photo TEXT'),
 ]
 
 // user_version을 읽어 현재 버전 이후 단계만 순서대로 적용한다.

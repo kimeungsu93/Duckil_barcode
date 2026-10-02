@@ -10,7 +10,11 @@ import {
 } from '@/lib/storage'
 
 const TEXT_FIELD_KEYS = ['raw_text', 'product_no', 'lot', 'memo'] as const
-const PHOTO_FIELD_KEYS = ['barcode_photo', 'product_photo'] as const
+export const PHOTO_FIELD_KEYS = [
+  'barcode_photo',
+  'product_photo',
+  'lighting_photo',
+] as const
 
 // FormData에서 뽑아낸 텍스트 필드 (문자열 값만 담김, 존재하지 않으면 키 자체가 없음)
 export type RecordFormFields = Partial<

@@ -74,11 +74,18 @@ async function main(): Promise<number> {
       }
     ).count
     const rows = backup
-      .prepare('SELECT barcode_photo, product_photo FROM records')
-      .all() as { barcode_photo: string | null; product_photo: string | null }[]
+      .prepare(
+        'SELECT barcode_photo, product_photo, lighting_photo FROM records'
+      )
+      .all() as {
+      barcode_photo: string | null
+      product_photo: string | null
+      lighting_photo: string | null
+    }[]
     for (const row of rows) {
       if (row.barcode_photo) photos.add(row.barcode_photo)
       if (row.product_photo) photos.add(row.product_photo)
+      if (row.lighting_photo) photos.add(row.lighting_photo)
     }
   } finally {
     backup.close()

@@ -52,9 +52,10 @@ export function HomeView({ preview, initialQuery }: HomeViewProps) {
 // API 연동 경로 (일반 경로). mock을 import하지 않는다
 // ---------------------------------------------------------------------------
 
-// 썸네일은 바코드 사진을 우선하고, 없으면 제품 사진을 쓴다. 둘 다 없으면 null
+// 썸네일은 바코드 → 제품 → 점등 사진 순으로 처음 있는 사진을 쓴다. 모두 없으면 null
 function toListItem(record: RecordDto): RecordListItemData {
-  const filename = record.barcode_photo ?? record.product_photo
+  const filename =
+    record.barcode_photo ?? record.product_photo ?? record.lighting_photo
   return {
     record,
     thumbnailUrl: filename ? photoUrl(filename) : null,
@@ -122,7 +123,8 @@ function HomeViewPreview({
     record,
     thumbnailUrl:
       mockPhotoUrl(record.barcode_photo, 'barcode') ??
-      mockPhotoUrl(record.product_photo, 'product'),
+      mockPhotoUrl(record.product_photo, 'product') ??
+      mockPhotoUrl(record.lighting_photo, 'lighting'),
   })
 
   const filtered = useMemo(() => {

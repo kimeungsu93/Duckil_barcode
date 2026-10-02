@@ -43,6 +43,7 @@ export default async function RecordDetailPage({
               photoUrls={{
                 barcode: mockPhotoUrl(record.barcode_photo, 'barcode'),
                 product: mockPhotoUrl(record.product_photo, 'product'),
+                lighting: mockPhotoUrl(record.lighting_photo, 'lighting'),
               }}
               preview={preview}
             />
@@ -72,6 +73,9 @@ export default async function RecordDetailPage({
                 : null,
               product: record.product_photo
                 ? photoUrl(record.product_photo)
+                : null,
+              lighting: record.lighting_photo
+                ? photoUrl(record.lighting_photo)
                 : null,
             }}
             preview={preview}

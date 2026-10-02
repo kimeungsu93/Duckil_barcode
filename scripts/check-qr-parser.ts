@@ -7,6 +7,7 @@ import {
   parseQr,
   type QrParseResult,
 } from '@/lib/qr-parser'
+import { normalizeWedgeText } from '@/lib/wedge-input'
 
 // 14자리 GTIN 샘플 (GS1 AI 01)
 const GTIN_SAMPLE = '12345678901234'
@@ -38,6 +39,18 @@ const cases: Case[] = [
   ],
 
   // --- iso15434: 실제 제품 라벨 Data Matrix 원문 ---
+  [
+    'iso15434 PDA 웨지 대체 문자(<GS> 등) 복원',
+    normalizeWedgeText(
+      '[)><RS>06<GS>VSJNW<GS>P846L9DC000<GS>T2606191J04A0000196<GS>CB.00<GS><RS><EOT>'
+    ),
+    { productNo: '846L9DC000', lot: '2606191', matchedRule: 'iso15434' },
+  ],
+  [
+    'iso15434 PDA 웨지 대체 문자({gs} 소문자) 복원',
+    normalizeWedgeText('[)>{rs}06{gs}P846L9DC000{gs}T2606191J04A{rs}{eot}'),
+    { productNo: '846L9DC000', lot: '2606191', matchedRule: 'iso15434' },
+  ],
   [
     'iso15434 실제 라벨 원문',
     '[)>\x1e06\x1dVSJNW\x1dP846L9DC000\x1dT2606191J04A0000196\x1dCB.00\x1d\x1e\x04',

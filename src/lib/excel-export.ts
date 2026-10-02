@@ -22,7 +22,7 @@ const PHOTO_COLUMN_WIDTH = (PHOTO_BOX_WIDTH_PX - 5) / 7 + 3
 // 사진이 들어가는 행의 높이(pt): px × 0.75 (90px → 67.5pt) 이상
 const PHOTO_ROW_HEIGHT_PT = PHOTO_BOX_HEIGHT_PX * 0.75
 
-// 헤더 열 정의 (컬럼 추가 없이 PRD F5의 8개 컬럼 고정)
+// 헤더 열 정의 (PRD F5의 9개 컬럼. Phase 7 Task 026에서 9번째 '점등 사진' 추가)
 const COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: 'No', key: 'no', width: 6 },
   { header: '일시', key: 'created_at', width: 18 },
@@ -32,11 +32,13 @@ const COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: '메모', key: 'memo', width: 20 },
   { header: '바코드 사진', key: 'barcode_photo', width: PHOTO_COLUMN_WIDTH },
   { header: '제품 사진', key: 'product_photo', width: PHOTO_COLUMN_WIDTH },
+  { header: '점등 사진', key: 'lighting_photo', width: PHOTO_COLUMN_WIDTH },
 ]
 
 // 사진 열의 1-based 열 번호 (헤더 정의 순서와 일치)
 const BARCODE_PHOTO_COLUMN = 7
 const PRODUCT_PHOTO_COLUMN = 8
+const LIGHTING_PHOTO_COLUMN = 9
 
 // JPEG/PNG 확장자(exceljs addImage용). readPhoto의 contentType과 1:1 대응
 type ExcelImageExtension = 'jpeg' | 'png'
@@ -153,6 +155,13 @@ export async function buildExportWorkbook(rows: RecordRow[]): Promise<Buffer> {
       record.product_photo,
       rowNumber,
       PRODUCT_PHOTO_COLUMN
+    )
+    await placePhoto(
+      workbook,
+      worksheet,
+      record.lighting_photo,
+      rowNumber,
+      LIGHTING_PHOTO_COLUMN
     )
   }
 
