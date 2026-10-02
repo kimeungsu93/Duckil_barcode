@@ -57,10 +57,10 @@ Phase 1 기반 정리 ──▶ Phase 2 웹 화면 UI (더미 데이터) ──�
 | 6     | 021   | 실제 QR 샘플 기반 파서 규칙 추가                                | 013, 샘플 확보     | [ ] 측정 준비 완료, 샘플 대기(Q1) |
 | 6     | 022   | 휴대폰 실기기 테스트 (iOS Safari, Android Chrome)               | 020                | [ ]                               |
 | 6     | 023   | 사내 서버 배포 및 운영 가이드 작성                              | 020                | [ ]                               |
-| 7     | 024   | PDA 스캐너 입력 기본 전환 (카메라는 대체)                       | 014, 016           | [ ]                               |
-| 7     | 025   | 원본 바코드(`raw_text`) 중복 등록 차단                          | 009, 011, 016      | [ ]                               |
-| 7     | 026   | 점등 사진 추가 (사진 3장·엑셀 9컬럼)                            | 010, 011, 012, 018 | [ ]                               |
-| 7     | 027   | Phase 7 통합 검증                                               | 024, 025, 026      | [ ]                               |
+| 7     | 024   | PDA 스캐너 입력 기본 전환 (카메라는 대체)                       | 014, 016           | [x]                               |
+| 7     | 025   | 원본 바코드(`raw_text`) 중복 등록 차단                          | 009, 011, 016      | [x]                               |
+| 7     | 026   | 점등 사진 추가 (사진 3장·엑셀 9컬럼)                            | 010, 011, 012, 018 | [x]                               |
+| 7     | 027   | Phase 7 통합 검증                                               | 024, 025, 026      | [x]                               |
 
 **Phase 완료 현황**
 
@@ -70,7 +70,7 @@ Phase 1 기반 정리 ──▶ Phase 2 웹 화면 UI (더미 데이터) ──�
 - [x] Phase 4: 스캔·촬영·저장 기능 연결 - 완료
 - [x] Phase 5: 목록·상세·내보내기 기능 연결 - 완료
 - [ ] Phase 6: 현장 적용
-- [ ] Phase 7: 현장 테스트 피드백 반영
+- [x] Phase 7: 현장 테스트 피드백 반영 - 완료 (실기기 PDA 확인은 현장 대기, Q17·Q18)
 
 **진행 순서와 병렬 진행 가능 구간**
 
@@ -739,22 +739,22 @@ Phase 2에서 만든 홈·상세·내보내기 화면의 더미 데이터를 실
     - 생성: `src/components/scanner/wedge-scan-input.tsx`(`'use client'`), `src/lib/wedge-input.ts`
     - 수정: `src/app/scan/_components/scanner-step.tsx`, `src/app/scan/_components/scan-flow.tsx`
   - 구현 사항
-    - [ ] `wedge-scan-input.tsx`: 보이는 입력란을 자동 포커스. `inputMode="none"`(소프트 키보드 억제), `autoComplete`/`autoCorrect` off, `spellCheck={false}`. Enter가 오면 `onDetected(value)` 호출, 빈 값은 무시
-    - [ ] 포커스를 잃으면 다시 포커스. 단, 다이얼로그가 열려 있으면 다시 포커스하지 않음
-    - [ ] `wedge-input.ts`의 `normalizeWedgeText()`: PDA가 GS·RS·EOT를 대체 문자(예: `<GS>`)로 보낸 경우 원래 제어문자로 되돌려 `qr-parser.ts`의 `parseIso15434`를 그대로 쓸 수 있게 함 (Q18)
-    - [ ] `scanner-step.tsx`: 기본 화면을 "PDA 스캔 대기"로 바꾸고, **카메라로 스캔** 버튼으로 기존 `QrScanner`를 띄움. 카메라 화면에서 **PDA 스캔으로 돌아가기** 제공. **직접 입력**은 그대로 유지
-    - [ ] `scan-flow.tsx`: `isCameraSupported()` 확인을 카메라를 고른 시점으로 미룸(카메라 미지원이어도 PDA 입력 가능). PDA 입력도 기존 `DETECTED` dispatch를 그대로 타고, 진동·효과음 피드백(`feedback.ts`)을 같이 적용
-    - [ ] 마지막으로 고른 방식(PDA/카메라)을 `localStorage`에 기억. 읽기·쓰기는 try/catch로 감쌈
+    - [x] `wedge-scan-input.tsx`: 보이는 입력란을 자동 포커스. `inputMode="none"`(소프트 키보드 억제), `autoComplete`/`autoCorrect` off, `spellCheck={false}`. Enter가 오면 `onDetected(value)` 호출, 빈 값은 무시
+    - [x] 포커스를 잃으면 다시 포커스. 단, 다이얼로그가 열려 있으면 다시 포커스하지 않음
+    - [x] `wedge-input.ts`의 `normalizeWedgeText()`: PDA가 GS·RS·EOT를 대체 문자(예: `<GS>`)로 보낸 경우 원래 제어문자로 되돌려 `qr-parser.ts`의 `parseIso15434`를 그대로 쓸 수 있게 함 (Q18)
+    - [x] `scanner-step.tsx`: 기본 화면을 "PDA 스캔 대기"로 바꾸고, **카메라로 스캔** 버튼으로 기존 `QrScanner`를 띄움. 카메라 화면에서 **PDA 스캔으로 돌아가기** 제공. **직접 입력**은 그대로 유지
+    - [x] `scan-flow.tsx`: `isCameraSupported()` 확인을 카메라를 고른 시점으로 미룸(카메라 미지원이어도 PDA 입력 가능). PDA 입력도 기존 `DETECTED` dispatch를 그대로 타고, 진동·효과음 피드백(`feedback.ts`)을 같이 적용
+    - [x] 마지막으로 고른 방식(PDA/카메라)을 `localStorage`에 기억. 읽기·쓰기는 try/catch로 감쌈
   - 완료 조건
-    - [ ] `/scan`에 들어가면 PDA 입력란이 포커스되어 있고, 원문 + Enter 입력으로 확인 단계로 넘어가며 Product No·Lot이 자동 입력된다 (F1-6)
-    - [ ] 카메라로 전환했다가 PDA 스캔으로 돌아올 수 있고, 카메라 미지원 환경에서도 PDA 입력은 동작한다 (F1-7)
+    - [x] `/scan`에 들어가면 PDA 입력란이 포커스되어 있고, 원문 + Enter 입력으로 확인 단계로 넘어가며 Product No·Lot이 자동 입력된다 (F1-6)
+    - [x] 카메라로 전환했다가 PDA 스캔으로 돌아올 수 있고, 카메라 미지원 환경에서도 PDA 입력은 동작한다 (F1-7)
   - 테스트 체크리스트 (Playwright MCP)
-    - [ ] `/scan` 진입 직후 `browser_evaluate`로 `document.activeElement`가 PDA 입력란인지 확인
-    - [ ] `browser_type`으로 ISO 15434 원문(실제 제어문자 버전과 `<GS>` 대체 문자 버전 각각) + Enter → 확인 단계에서 Product No `84739-DC000(G2E)`·Lot 자동 입력 확인
-    - [ ] 빈 값 + Enter는 무시되고 단계가 바뀌지 않음
-    - [ ] 입력란 밖을 클릭한 뒤 다시 포커스되는지, 이탈 확인 모달이 열려 있을 때는 포커스를 빼앗지 않는지 확인
-    - [ ] **카메라로 스캔** → 카메라 화면 → **PDA 스캔으로 돌아가기**, 새로고침 후 마지막 방식이 유지되는지 확인. `localStorage` 접근이 예외를 던지도록 바꿔도 화면이 정상인지 확인
-    - [ ] `navigator.mediaDevices`를 없앤 환경에서 PDA 입력은 동작하고, 카메라를 고르면 미지원 안내가 보이는지 확인
+    - [x] `/scan` 진입 직후 `browser_evaluate`로 `document.activeElement`가 PDA 입력란인지 확인
+    - [x] `browser_type`으로 ISO 15434 원문(실제 제어문자 버전과 `<GS>` 대체 문자 버전 각각) + Enter → 확인 단계에서 Product No `84739-DC000(G2E)`·Lot 자동 입력 확인
+    - [x] 빈 값 + Enter는 무시되고 단계가 바뀌지 않음
+    - [x] 입력란 밖을 클릭한 뒤 다시 포커스되는지, 이탈 확인 모달이 열려 있을 때는 포커스를 빼앗지 않는지 확인
+    - [x] **카메라로 스캔** → 카메라 화면 → **PDA 스캔으로 돌아가기**, 새로고침 후 마지막 방식이 유지되는지 확인. `localStorage` 접근이 예외를 던지도록 바꿔도 화면이 정상인지 확인
+    - [x] `navigator.mediaDevices`를 없앤 환경에서 PDA 입력은 동작하고, 카메라를 고르면 미지원 안내가 보이는지 확인
   - 확인 필요: Q17, Q18
 
 - **Task 025: 원본 바코드(`raw_text`) 중복 등록 차단**
@@ -763,26 +763,26 @@ Phase 2에서 만든 홈·상세·내보내기 화면의 더미 데이터를 실
     - 생성: `src/lib/raw-key.ts`, `src/app/api/records/duplicate/route.ts`, `src/components/dialogs/duplicate-raw-dialog.tsx`, `scripts/check-duplicate-raw.ts`
     - 수정: `src/lib/db.ts`, `src/lib/records-repo.ts`, `src/app/api/records/route.ts`, `src/lib/types/api.ts`, `src/lib/types/record.ts`, `src/lib/record-mapper.ts`, `src/lib/api/records-client.ts`, `src/app/scan/_components/scan-flow.tsx`
   - 구현 사항
-    - [ ] `raw-key.ts`의 `toRawKey(raw)`: 제어문자를 지우고 trim. `MANUAL_RAW_TEXT`(`'[직접입력]'`)이면 `null` 반환 (Q19)
-    - [ ] `db.ts` `MIGRATIONS` v2: `ALTER TABLE records ADD COLUMN raw_key TEXT` 후 기존 행을 `toRawKey`로 백필. 중복이 없으면 `CREATE UNIQUE INDEX idx_records_raw_key ON records(raw_key) WHERE raw_key IS NOT NULL`, 중복이 있으면 일반 인덱스 + `console.warn` (Q21)
-    - [ ] `records-repo.ts`: `insertRecord`에 `raw_key` 추가, `findByRawKey(key)` 추가, `existsByProductLot` 제거 (Q20)
-    - [ ] `POST /api/records`: 검증 직후·**사진 저장 전에** `findByRawKey`로 조회해 있으면 `409 DUPLICATE_RAW_TEXT` + `existing: { id, product_no, lot, created_at }`. 동시 요청 경합은 INSERT의 `SQLITE_CONSTRAINT_UNIQUE`를 같은 409로 바꾸고 `rollbackSavedPhotos`로 사진 롤백. 응답의 `duplicate` 플래그 제거
-    - [ ] `GET /api/records/duplicate?raw_text=`: `{ duplicate, existing? }` 반환. 타입은 `ApiErrorCode`에 `DUPLICATE_RAW_TEXT` 추가, `CreateRecordResponse`에서 `duplicate` 제거, DTO에는 `raw_key`를 노출하지 않음
-    - [ ] 클라이언트: `records-client.ts`에 `checkDuplicateRaw()` 추가. `scan-flow.tsx`에서 인식 직후(PDA·카메라)와 직접 입력 원문 blur 때 확인하고, 중복이면 `duplicate-raw-dialog.tsx`(AlertDialog: "이미 등록된 바코드입니다" + 기존 기록 요약, [기존 기록 보기]·[다시 스캔])를 띄우고 다음 단계로 가지 않음. 저장 시 409도 같은 다이얼로그. 확인 API가 네트워크 오류면 진행을 허용(최종 차단은 서버 409). 기존 P/L 중복 경고 토스트 제거
-    - [ ] `scripts/check-duplicate-raw.ts`: 운영 DB에 이미 있는 중복 묶음을 출력
+    - [x] `raw-key.ts`의 `toRawKey(raw)`: 제어문자를 지우고 trim. `MANUAL_RAW_TEXT`(`'[직접입력]'`)이면 `null` 반환 (Q19)
+    - [x] `db.ts` `MIGRATIONS` v2: `ALTER TABLE records ADD COLUMN raw_key TEXT` 후 기존 행을 `toRawKey`로 백필. 중복이 없으면 `CREATE UNIQUE INDEX idx_records_raw_key ON records(raw_key) WHERE raw_key IS NOT NULL`, 중복이 있으면 일반 인덱스 + `console.warn` (Q21)
+    - [x] `records-repo.ts`: `insertRecord`에 `raw_key` 추가, `findByRawText(rawText)` 추가(원문을 받아 내부에서 `toRawKey`로 조회), `existsByProductLot` 제거 (Q20)
+    - [x] `POST /api/records`: 검증 직후·**사진 저장 전에** `findByRawText`로 조회해 있으면 `409 DUPLICATE_RAW_TEXT` + `existing: { id, product_no, lot, created_at }`. 동시 요청 경합은 INSERT의 `SQLITE_CONSTRAINT_UNIQUE`를 같은 409로 바꾸고 `rollbackSavedPhotos`로 사진 롤백. 응답의 `duplicate` 플래그 제거
+    - [x] `GET /api/records/duplicate?raw_text=`: `{ duplicate, existing? }` 반환. 타입은 `ApiErrorCode`에 `DUPLICATE_RAW_TEXT` 추가, `CreateRecordResponse`에서 `duplicate` 제거, DTO에는 `raw_key`를 노출하지 않음
+    - [x] 클라이언트: `records-client.ts`에 `checkDuplicateRaw()` 추가. `scan-flow.tsx`에서 인식 직후(PDA·카메라)와 직접 입력은 정보 확인 단계에서 [다음]을 누를 때 확인하고, 중복이면 `duplicate-raw-dialog.tsx`(AlertDialog: "이미 등록된 바코드입니다" + 기존 기록 요약, [기존 기록 보기]·[다시 스캔])를 띄우고 다음 단계로 가지 않음. 저장 시 409도 같은 다이얼로그. 확인 API가 네트워크 오류면 진행을 허용(최종 차단은 서버 409). 기존 P/L 중복 경고 토스트 제거
+    - [x] `scripts/check-duplicate-raw.ts`: 운영 DB에 이미 있는 중복 묶음을 출력
   - 완료 조건
-    - [ ] 같은 원본 바코드를 다시 스캔하면 경고 다이얼로그가 뜨고 저장이 막힌다 (F4-6)
-    - [ ] 같은 원문으로 `POST`하면 `409 DUPLICATE_RAW_TEXT`가 오고 `data/uploads/` 파일 수가 변하지 않는다
-    - [ ] `[직접입력]` 원문은 여러 건 저장된다
-    - [ ] 중복이 있는 v1 DB로 기동해도 앱이 정상 기동되고 경고 로그가 남는다
+    - [x] 같은 원본 바코드를 다시 스캔하면 경고 다이얼로그가 뜨고 저장이 막힌다 (F4-6)
+    - [x] 같은 원문으로 `POST`하면 `409 DUPLICATE_RAW_TEXT`가 오고 `data/uploads/` 파일 수가 변하지 않는다
+    - [x] `[직접입력]` 원문은 여러 건 저장된다
+    - [x] 중복이 있는 v1 DB로 기동해도 앱이 정상 기동되고 경고 로그가 남는다
   - 테스트 체크리스트 (Playwright MCP)
-    - [ ] 원문 A 저장 후 PDA 입력으로 A를 다시 넣으면 중복 다이얼로그가 뜨고 확인 단계로 넘어가지 않음. [기존 기록 보기]는 `/records/{id}`로, [다시 스캔]은 PDA 대기 화면으로 이동
-    - [ ] 제어문자가 있는 원문과 제어문자를 뺀 같은 원문이 같은 중복으로 판정됨
-    - [ ] `browser_evaluate`로 사진을 붙여 같은 원문 `POST` → 409, `existing` 필드 확인, 업로드 파일 수 불변
-    - [ ] `fetch`를 가로채 중복 확인 API를 네트워크 오류로 만들면 다음 단계로 진행되고, 저장 시 409를 받으면 같은 다이얼로그가 뜸
-    - [ ] 같은 원문 `POST` 2개를 동시에 보내면 1건만 201이고 나머지는 409, 고아 사진 파일 없음
-    - [ ] 직접 입력 원문을 비워 `[직접입력]`으로 2건 저장 → 둘 다 201
-    - [ ] Product No+Lot이 같고 원문이 다른 기록은 경고 없이 저장됨 (P/L 경고 폐지 확인)
+    - [x] 원문 A 저장 후 PDA 입력으로 A를 다시 넣으면 중복 다이얼로그가 뜨고 확인 단계로 넘어가지 않음. [기존 기록 보기]는 `/records/{id}`로, [다시 스캔]은 PDA 대기 화면으로 이동
+    - [x] 제어문자가 있는 원문과 제어문자를 뺀 같은 원문이 같은 중복으로 판정됨
+    - [x] `browser_evaluate`로 사진을 붙여 같은 원문 `POST` → 409, `existing` 필드 확인, 업로드 파일 수 불변
+    - [x] `fetch`를 가로채 중복 확인 API를 네트워크 오류로 만들면 다음 단계로 진행되고, 저장 시 409를 받으면 같은 다이얼로그가 뜸
+    - [x] 같은 원문 `POST` 2개를 동시에 보내면 1건만 201이고 나머지는 409, 고아 사진 파일 없음
+    - [x] 직접 입력 원문을 비워 `[직접입력]`으로 2건 저장 → 둘 다 201
+    - [x] Product No+Lot이 같고 원문이 다른 기록은 경고 없이 저장됨 (P/L 경고 폐지 확인)
   - 확인 필요: Q19, Q20, Q21
 
 - **Task 026: 점등 사진 추가로 사진 3장·엑셀 9컬럼 지원**
@@ -792,50 +792,50 @@ Phase 2에서 만든 홈·상세·내보내기 화면의 더미 데이터를 실
     - 화면: `src/components/records/photo-slot.tsx`, `src/app/scan/_components/scan-flow.tsx`, `photo-step.tsx`, `done-step.tsx`, `src/app/records/[id]/_components/record-detail-view.tsx`, `record-detail-skeleton.tsx`, `src/app/_components/home-view.tsx`
     - 더미·스크립트·배포: `src/lib/mock/records.ts`, `public/mock/lighting-sample.jpg`, `scripts/backup-data.ts`, `scripts/check-data-integrity.ts`, `scripts/check-excel-export.ts`, `scripts/check-repo.ts`, `scripts/seed-export-test.ts`, `deploy/nginx.conf.example`, `docs/guides/deployment.md`
   - 구현 사항
-    - [ ] `db.ts` `MIGRATIONS` v3: `ALTER TABLE records ADD COLUMN lighting_photo TEXT`
-    - [ ] 기존 사진 필드와 같은 패턴으로 `lighting_photo` 추가: 타입, 매퍼, `InsertRecordInput`·`UpdateRecordPatch`·`UPDATABLE_COLUMNS`·INSERT SQL, `PHOTO_FIELD_KEYS`, `records-client.ts`, 더미 데이터
-    - [ ] `PHOTO_SLOTS`에 `lighting`("점등 사진", 안내 "램프가 켜진 상태가 보이게") 추가. `scan-flow.tsx`에 세 번째 `usePhotoCapture`, 사진 누락 확인·리셋·413/415 슬롯 매핑 반영. 상세·스켈레톤·완료 단계(장수 표시) 갱신, 홈 썸네일 순서는 바코드 → 제품 → 점등
-    - [ ] `PATCH`의 사진 교체와 `DELETE`의 파일 삭제를 3장 모두에 적용
-    - [ ] `excel-export.ts`: `COLUMNS` 9번째에 `점등 사진` 추가(주석 "8개 고정" 수정), `LIGHTING_PHOTO_COLUMN = 9`로 기존 `placePhoto` 재사용
-    - [ ] 검증·백업 스크립트 5종을 3장 기준으로 갱신
-    - [ ] `client_max_body_size`를 12m → 20m로 올림(5MB × 3 + 여유)
+    - [x] `db.ts` `MIGRATIONS` v3: `ALTER TABLE records ADD COLUMN lighting_photo TEXT`
+    - [x] 기존 사진 필드와 같은 패턴으로 `lighting_photo` 추가: 타입, 매퍼, `InsertRecordInput`·`UpdateRecordPatch`·`UPDATABLE_COLUMNS`·INSERT SQL, `PHOTO_FIELD_KEYS`, `records-client.ts`, 더미 데이터
+    - [x] `PHOTO_SLOTS`에 `lighting`("점등 사진", 안내 "램프가 켜진 상태가 보이게") 추가. `scan-flow.tsx`에 세 번째 `usePhotoCapture`, 사진 누락 확인·리셋·413/415 슬롯 매핑 반영. 상세·완료 단계(장수 표시) 갱신(스켈레톤은 사진 1칸 자리 표시를 그대로 둠), 홈 썸네일 순서는 바코드 → 제품 → 점등
+    - [x] `PATCH`의 사진 교체와 `DELETE`의 파일 삭제를 3장 모두에 적용
+    - [x] `excel-export.ts`: `COLUMNS` 9번째에 `점등 사진` 추가(주석 "8개 고정" 수정), `LIGHTING_PHOTO_COLUMN = 9`로 기존 `placePhoto` 재사용
+    - [x] 검증·백업 스크립트 5종을 3장 기준으로 갱신
+    - [x] `client_max_body_size`를 12m → 20m로 올림(5MB × 3 + 여유)
   - 완료 조건
-    - [ ] 사진 3장을 저장하면 상세에 3장이 보이고, 점등 사진만 재촬영하면 그 파일만 교체된다 (F3-5)
-    - [ ] 내보낸 엑셀의 컬럼이 9개이고, 9번째 `점등 사진`에 썸네일이 들어간다 (F5-5)
-    - [ ] 기록 삭제 시 점등 사진 파일도 함께 삭제된다 (F4-4)
+    - [x] 사진 3장을 저장하면 상세에 3장이 보이고, 점등 사진만 재촬영하면 그 파일만 교체된다 (F3-5)
+    - [x] 내보낸 엑셀의 컬럼이 9개이고, 9번째 `점등 사진`에 썸네일이 들어간다 (F5-5)
+    - [x] 기록 삭제 시 점등 사진 파일도 함께 삭제된다 (F4-4)
   - 테스트 체크리스트 (Playwright MCP)
-    - [ ] `browser_file_upload`로 3개 슬롯에 정상 JPEG 업로드 → 저장 → 상세에서 3장 표시, 완료 단계 장수 표시 확인
-    - [ ] 점등 사진만 비운 채 저장하면 사진 누락 확인 모달이 바코드·제품 사진과 같은 기준으로 동작
-    - [ ] 점등 슬롯에 5MB 초과·이미지 아닌 파일 → 413/415 오류가 점등 슬롯에 표시
-    - [ ] 상세에서 점등 사진만 재촬영 → 새 이미지 표시, 이전 URL 404, 다른 두 장은 그대로
-    - [ ] 삭제 후 3장 URL 모두 404, `check-data-integrity.ts` 통과
-    - [ ] 엑셀 다운로드 후 `check-excel-export.ts`로 9컬럼·점등 이미지 위치 확인
+    - [x] `browser_file_upload`로 3개 슬롯에 정상 JPEG 업로드 → 저장 → 상세에서 3장 표시, 완료 단계 장수 표시 확인
+    - [x] 점등 사진만 비운 채 저장하면 사진 누락 확인 모달이 바코드·제품 사진과 같은 기준으로 동작
+    - [x] 점등 슬롯에 5MB 초과·이미지 아닌 파일 → 413/415 오류가 점등 슬롯에 표시
+    - [x] 상세에서 점등 사진만 재촬영 → 새 이미지 표시, 이전 URL 404, 다른 두 장은 그대로
+    - [x] 삭제 후 3장 URL 모두 404, `check-data-integrity.ts` 통과
+    - [x] 엑셀 다운로드 후 `check-excel-export.ts`로 9컬럼·점등 이미지 위치 확인
   - 확인 필요: Q5 (재촬영 교체 방식은 기존과 동일)
 
 - **Task 027: Phase 7 통합 검증**
   - 의존: Task 024, 025, 026
-  - 담당 파일: `tasks/027-phase7-verification.md`(시나리오와 결과 기록)
+  - 담당 파일: `tasks/027-phase7-verification.md`(시나리오와 결과 기록, 2026-10-03 완료)
   - 구현 사항
-    - [ ] `npm run check-all`, `npm run build` 실행
-    - [ ] 기존 검증 스크립트 실행: `check-qr-parser.ts`, `check-repo.ts`, `check-excel-export.ts`, `check-data-integrity.ts`
-    - [ ] v1 DB(중복 원문 포함)로 기동해 v2·v3 마이그레이션이 성공하고, 중복이 있으면 일반 인덱스 + 경고 로그로 기동되는지 확인 (Q21)
-    - [ ] 결과를 작업 파일에 기록하고, 추적표의 Phase 7 항목(F1-6, F1-7, F3-5, F4-6, S-스캔-9, S-스캔-10)을 확인
+    - [x] `npm run check-all`, `npm run build` 실행
+    - [x] 기존 검증 스크립트 실행: `check-qr-parser.ts`, `check-repo.ts`, `check-excel-export.ts`, `check-data-integrity.ts`
+    - [x] v1 DB(중복 원문 포함)로 기동해 v2·v3 마이그레이션이 성공하고, 중복이 있으면 일반 인덱스 + 경고 로그로 기동되는지 확인 (Q21)
+    - [x] 결과를 작업 파일에 기록하고, 추적표의 Phase 7 항목(F1-6, F1-7, F3-5, F4-6, S-스캔-9, S-스캔-10)을 확인
   - 완료 조건
-    - [ ] 아래 테스트 체크리스트가 모두 통과하고, 실기기에서만 확인할 수 있는 항목(PDA 제어문자 출력, Q17·Q18)은 현장 확인 대기로 기록했다
+    - [x] 아래 테스트 체크리스트가 모두 통과하고, 실기기에서만 확인할 수 있는 항목(PDA 제어문자 출력, Q17·Q18)은 현장 확인 대기로 기록했다 (`tasks/027-phase7-verification.md`)
   - 테스트 체크리스트 (Playwright MCP, 스크래치 `DATA_DIR`)
-    - [ ] 전체 흐름: `/scan` 진입(PDA 입력란 포커스) → ISO 15434 원문 + Enter → 확인 단계 자동 입력 → 사진 3장 → 저장 → 다음 스캔
-    - [ ] 카메라로 전환 후 PDA로 복귀
-    - [ ] 같은 원문 재입력 → 중복 다이얼로그, 진행 차단. fetch `POST` → 409, uploads 파일 수 불변
-    - [ ] `[직접입력]` 2건 모두 저장
-    - [ ] 상세에서 3장 표시, 점등 사진만 재촬영 교체
-    - [ ] 엑셀 내보내기 → 9컬럼, 점등 이미지 삽입
-    - [ ] 오류·경계: 저장 실패 후 다시 시도, 중복 확인 API 실패 시 진행 허용, 동시 저장 경합
+    - [x] 전체 흐름: `/scan` 진입(PDA 입력란 포커스) → ISO 15434 원문 + Enter → 확인 단계 자동 입력 → 사진 3장 → 저장 → 다음 스캔
+    - [x] 카메라로 전환 후 PDA로 복귀
+    - [x] 같은 원문 재입력 → 중복 다이얼로그, 진행 차단. fetch `POST` → 409, uploads 파일 수 불변
+    - [x] `[직접입력]` 2건 모두 저장
+    - [x] 상세에서 3장 표시, 점등 사진만 재촬영 교체
+    - [x] 엑셀 내보내기 → 9컬럼, 점등 이미지 삽입
+    - [x] 오류·경계: 저장 실패 후 다시 시도, 중복 확인 API 실패 시 진행 허용, 동시 저장 경합
 
 **Phase 7 완료 조건**
 
-- [ ] `npm run check-all` 통과
-- [ ] `npm run build` 통과 (`data/` 미생성 확인)
-- [ ] Task 024~026 테스트 체크리스트와 Task 027 통합 검증 통과
+- [x] `npm run check-all` 통과
+- [x] `npm run build` 통과 (`data/` 미생성 확인)
+- [x] Task 024~026 테스트 체크리스트와 Task 027 통합 검증 통과
 
 ## PRD 수용 기준 추적표
 
