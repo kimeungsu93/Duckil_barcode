@@ -86,7 +86,7 @@ DATA_DIR=/tmp/duckil-device-test npx next dev --turbopack --experimental-https -
 | F5-1 | 기간 미선택 시 다운로드 비활성화                |            |                |      |
 | F5-2 | 0건이면 안내 문구                               |            |                |      |
 | F5-3 | 200건 초과 시 확인 모달                         |            |                |      |
-| F5-4 | 500건 초과 시 거부 + "기간을 좁혀주세요"        |            |                |      |
+| F5-4 | 5000건 초과 시 거부 + "기간을 좁혀주세요"       |            |                |      |
 | F5-5 | 사진 썸네일이 셀에 삽입, 사진 없으면 빈 셀      |            |                |      |
 | F5-6 | No 순번 + 스캔 순서(`created_at ASC`) 정렬      |            |                |      |
 | F5-7 | 사진 원본 비율 유지 + 헤더 스타일               |            |                |      |
@@ -115,7 +115,7 @@ DATA_DIR=/tmp/duckil-device-test npx next dev --turbopack --experimental-https -
 | S-내보내기-2 | 생성 중                      | 스피너 + 안내 문구                      |            |                |      |
 | S-내보내기-3 | 대상 0건                     | "선택한 기간에 기록이 없습니다"         |            |                |      |
 | S-내보내기-4 | 경고 임계치(200건) 초과      | 계속 진행 확인 모달                     |            |                |      |
-| S-내보내기-5 | 하드 상한(500건) 초과        | 다운로드 거부 + "기간을 좁혀주세요"     |            |                |      |
+| S-내보내기-5 | 전체 상한(5000건) 초과       | 다운로드 거부 + "기간을 좁혀주세요"     |            |                |      |
 | S-내보내기-6 | 생성 실패                    | 에러 토스트 + 다시 시도                 |            |                |      |
 
 ### 3-3. 휴대폰 환경 항목 (ROADMAP Task 022)
@@ -161,8 +161,8 @@ DATA_DIR=/tmp/duckil-device-test npx next dev --turbopack --experimental-https -
 
 ### 4-2. 내보내기 임계치 판단 (ROADMAP Q3)
 
-- 200건 내보내기 시간·메모리가 서버에서 문제없으면 경고 200건 / 상한 500건을 유지합니다
-- 시간이 `proxy_read_timeout`(120초)에 가깝거나 메모리가 `max_memory_restart`(1G)에 가까우면 `src/lib/constants.ts`의 `EXPORT_WARN_THRESHOLD`·`EXPORT_HARD_LIMIT`를 낮추고 이 표에 근거를 남깁니다
+- 500건(파일 1개) 내보내기 시간·메모리가 서버에서 문제없으면 경고 200건 / 파일 분할 500건 / 전체 상한 5000건을 유지합니다
+- 시간이 `proxy_read_timeout`(120초)에 가깝거나 메모리가 `max_memory_restart`(1G)에 가까우면 `src/lib/constants.ts`의 `EXPORT_WARN_THRESHOLD`·`EXPORT_PART_SIZE`를 낮추고 이 표에 근거를 남깁니다
 
 ## 5. 실패·미달 항목 처리 규칙
 

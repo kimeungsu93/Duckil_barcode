@@ -10,7 +10,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { countRecordsInRange, downloadExport } from '@/lib/api/export-client'
 import { ApiError } from '@/lib/api/records-client'
-import { EXPORT_HARD_LIMIT, EXPORT_WARN_THRESHOLD } from '@/lib/constants'
+import {
+  EXPORT_MAX_TOTAL,
+  EXPORT_PART_SIZE,
+  EXPORT_WARN_THRESHOLD,
+} from '@/lib/constants'
 import { MOCK_RECORDS } from '@/lib/mock/records'
 import { exportQuerySchema } from '@/lib/schemas/export'
 import { kstDayStart, kstNextDayStart, todayKstDate } from '@/lib/time'
@@ -25,6 +29,14 @@ export type ExportPreview =
 interface DateRange {
   from: string
   to: string
+}
+
+// 다운로드 1회 단위: 기간 + 500건 단위로 나눈 파일 번호(1부터)
+type ExportPart = DateRange & { part: number }
+
+// 건수를 파일 1개당 EXPORT_PART_SIZE건으로 나눈 파일 수
+function countParts(total: number): number {
+  return Math.max(1, Math.ceil(total / EXPORT_PART_SIZE))
 }
 
 // YYYY-MM-DD에 일수를 더한다. UTC로 계산해 브라우저 타임존 영향이 없다
@@ -62,7 +74,7 @@ function createDummyCheckCount(preview: ExportPreview | null) {
     await wait(400)
     if (preview === 'empty') return 0
     if (preview === 'warn') return EXPORT_WARN_THRESHOLD + 50
-    if (preview === 'over-limit') return EXPORT_HARD_LIMIT + 100
+    if (preview === 'over-limit') return EXPORT_MAX_TOTAL + 100
     const start = kstDayStart(from)
     const end = kstNextDayStart(to)
     return MOCK_RECORDS.filter(
@@ -83,8 +95,8 @@ interface ExportFormProps {
   preview: ExportPreview | null
   // 지정하지 않으면 preview 여부에 따라 더미 동작 또는 실제 API(export-client)를 쓴다
   onCheckCount?: (range: DateRange) => Promise<number>
-  // 성공 시 실제 파일명을 반환한다(더미는 void)
-  onDownload?: (range: DateRange) => Promise<string | void>
+  // 파일 1개(part번째 500건 구간)를 받는다. 성공 시 실제 파일명을 반환한다(더미는 void)
+  onDownload?: (target: ExportPart) => Promise<string | void>
 }
 
 export function ExportForm({
@@ -100,6 +112,8 @@ export function ExportForm({
     preview === 'generating' ? 'generating' : 'idle'
   )
   const [count, setCount] = useState<number>()
+  // 여러 파일로 나눠 받을 때 진행 상황 (현재 받는 파일 번호 / 전체 파일 수)
+  const [progress, setProgress] = useState<{ current: number; total: number }>()
   const [warnOpen, setWarnOpen] = useState(false)
   const [checkCount] = useState(
     () =>
@@ -123,24 +137,48 @@ export function ExportForm({
     setStatus('idle')
   }
 
-  async function runDownload() {
+  // 서버 메모리 보호를 위해 EXPORT_PART_SIZE건씩 나눈 파일을 순서대로 하나씩 받는다 (ROADMAP Q3).
+  // 중간에 실패하면 "다시 시도"는 실패한 파일부터 이어 받는다
+  async function runDownload(parts: number, startPart = 1) {
     setStatus('generating')
+    let part = startPart
     try {
-      const filename = await download(range)
+      let filename: string | void = undefined
+      for (; part <= parts; part++) {
+        setProgress({ current: part, total: parts })
+        filename = await download({ ...range, part })
+      }
       setStatus('idle')
-      toast.success('엑셀 파일이 준비되었습니다', {
-        description: filename || `records_${range.from}_${range.to}.xlsx`,
-      })
+      setProgress(undefined)
+      if (parts === 1) {
+        toast.success('엑셀 파일이 준비되었습니다', {
+          description: filename || `records_${range.from}_${range.to}.xlsx`,
+        })
+      } else {
+        toast.success(`엑셀 파일 ${parts}개가 준비되었습니다`, {
+          description: `${EXPORT_PART_SIZE}건씩 나눠 저장했습니다`,
+        })
+      }
     } catch (error) {
+      setProgress(undefined)
       // 클라이언트 건수 확인을 건너뛰었거나 그 사이 건수가 늘어난 경우를 대비한 방어 처리
       if (error instanceof ApiError && error.code === 'TOO_MANY_RECORDS') {
         setStatus('over-limit')
         return
       }
       setStatus('idle')
-      toast.error('엑셀 생성에 실패했습니다', {
-        action: { label: '다시 시도', onClick: () => void runDownload() },
-      })
+      const failedPart = part
+      toast.error(
+        parts === 1
+          ? '엑셀 생성에 실패했습니다'
+          : `엑셀 생성에 실패했습니다 (${failedPart}/${parts}번째 파일)`,
+        {
+          action: {
+            label: '다시 시도',
+            onClick: () => void runDownload(parts, failedPart),
+          },
+        }
+      )
     }
   }
 
@@ -151,13 +189,13 @@ export function ExportForm({
       const total = await checkCount(range)
       setCount(total)
       if (total === 0) return setStatus('empty')
-      if (total > EXPORT_HARD_LIMIT) return setStatus('over-limit')
+      if (total > EXPORT_MAX_TOTAL) return setStatus('over-limit')
       if (total > EXPORT_WARN_THRESHOLD) {
         setStatus('idle')
         setWarnOpen(true)
         return
       }
-      await runDownload()
+      await runDownload(countParts(total))
     } catch {
       setStatus('idle')
       toast.error('기록 건수를 확인하지 못했습니다', {
@@ -236,7 +274,7 @@ export function ExportForm({
         )}
       </div>
 
-      <ExportStatus status={status} count={count} />
+      <ExportStatus status={status} count={count} progress={progress} />
 
       <Button
         type="button"
@@ -253,9 +291,13 @@ export function ExportForm({
         open={warnOpen}
         onOpenChange={setWarnOpen}
         title="사진이 많아 생성에 시간이 걸릴 수 있습니다"
-        description={`선택한 기간의 기록이 ${count ?? 0}건입니다. 계속 진행하시겠습니까?`}
+        description={
+          countParts(count ?? 0) > 1
+            ? `선택한 기간의 기록이 ${count}건입니다. ${EXPORT_PART_SIZE}건씩 엑셀 파일 ${countParts(count ?? 0)}개로 나눠 받습니다. 브라우저가 여러 파일 다운로드를 물으면 허용해주세요. 계속 진행하시겠습니까?`
+            : `선택한 기간의 기록이 ${count ?? 0}건입니다. 계속 진행하시겠습니까?`
+        }
         confirmLabel="계속 진행"
-        onConfirm={() => void runDownload()}
+        onConfirm={() => void runDownload(countParts(count ?? 0))}
       />
     </div>
   )

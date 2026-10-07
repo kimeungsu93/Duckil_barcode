@@ -26,9 +26,14 @@ function parseFilename(header: string | null): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
-// GET /api/export?from&to: xlsx 파일을 내려받아 브라우저에 저장하고 파일명을 반환한다
-export async function downloadExport({ from, to }: DateRange): Promise<string> {
-  const params = new URLSearchParams({ from, to })
+// GET /api/export?from&to&part: part번째(1부터) 500건 구간의 xlsx 파일을 내려받아
+// 브라우저에 저장하고 파일명을 반환한다
+export async function downloadExport({
+  from,
+  to,
+  part = 1,
+}: DateRange & { part?: number }): Promise<string> {
+  const params = new URLSearchParams({ from, to, part: String(part) })
 
   let res: Response
   try {

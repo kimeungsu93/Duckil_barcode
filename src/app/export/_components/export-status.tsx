@@ -1,6 +1,6 @@
 import { AlertCircle, Inbox, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { EXPORT_HARD_LIMIT } from '@/lib/constants'
+import { EXPORT_MAX_TOTAL } from '@/lib/constants'
 
 export type ExportStatusValue =
   | 'idle'
@@ -13,10 +13,12 @@ interface ExportStatusProps {
   status: ExportStatusValue
   // 상한 초과일 때 조회된 건수
   count?: number
+  // 여러 파일로 나눠 받을 때 진행 상황 (현재 파일 번호 / 전체 파일 수)
+  progress?: { current: number; total: number }
 }
 
 // 내보내기 진행 상태 표시 (PRD §5 내보내기)
-export function ExportStatus({ status, count }: ExportStatusProps) {
+export function ExportStatus({ status, count, progress }: ExportStatusProps) {
   if (status === 'checking' || status === 'generating') {
     return (
       <div
@@ -27,7 +29,9 @@ export function ExportStatus({ status, count }: ExportStatusProps) {
         <p className="text-sm">
           {status === 'checking'
             ? '기록 건수를 확인하는 중...'
-            : '엑셀 생성 중... 사진이 많으면 시간이 걸릴 수 있습니다'}
+            : progress && progress.total > 1
+              ? `엑셀 생성 중... (${progress.current}/${progress.total}번째 파일) 사진이 많으면 시간이 걸릴 수 있습니다`
+              : '엑셀 생성 중... 사진이 많으면 시간이 걸릴 수 있습니다'}
         </p>
       </div>
     )
@@ -50,7 +54,7 @@ export function ExportStatus({ status, count }: ExportStatusProps) {
         <AlertTitle>기간을 좁혀주세요</AlertTitle>
         <AlertDescription>
           {count !== undefined && `선택한 기간의 기록이 ${count}건입니다. `}한
-          번에 {EXPORT_HARD_LIMIT}건까지만 내보낼 수 있습니다.
+          번에 {EXPORT_MAX_TOTAL}건까지만 내보낼 수 있습니다.
         </AlertDescription>
       </Alert>
     )

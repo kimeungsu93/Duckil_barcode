@@ -110,7 +110,7 @@
 - 동적 파라미터는 `{ params }: { params: Promise<{ id: string }> }` 후 `await params`
 - 생성/수정은 `multipart/form-data` + `request.formData()`. Server Actions로 대체하지 않는다
 - `GET /api/records`는 `q`, `limit`(기본 20, 최대 100), `offset`, `from`/`to`(Q6, 건수 확인용)를 받는다
-- Excel: 500건 초과 시 서버가 `422` 강제(화면 검사와 별개). 헤더 `Content-Disposition: attachment; filename="records_{from}_{to}.xlsx"`
+- Excel: 한 요청에 500건(`EXPORT_PART_SIZE`)까지만 생성, 그 이상은 `part` 쿼리로 나눠 받음. 5000건(`EXPORT_MAX_TOTAL`) 초과 시 서버가 `422` 강제(화면 검사와 별개). 헤더 `Content-Disposition: attachment; filename="records_{from}_{to}.xlsx"`(여러 파일이면 `_{part}of{parts}` 접미사)
 
 ### 5.5 QR 파서
 

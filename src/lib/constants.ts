@@ -24,8 +24,11 @@ export const LIST_PAGE_SIZE = 20
 export const LIST_MAX_LIMIT = 100
 
 // Excel 내보내기 건수 제한 (ROADMAP Q3)
+// 사진 원본을 워크북에 넣으므로 서버 메모리 보호를 위해 파일 1개당 500건씩 나눠 만든다.
+// 전체 기간 상한(파일 10개)을 넘으면 "기간을 좁혀주세요"로 거부한다
 export const EXPORT_WARN_THRESHOLD = 200
-export const EXPORT_HARD_LIMIT = 500
+export const EXPORT_PART_SIZE = 500
+export const EXPORT_MAX_TOTAL = 5000
 
 // 직접 입력으로 QR 원문이 없을 때 저장하는 raw_text (ROADMAP Q7)
 export const MANUAL_RAW_TEXT = '[직접입력]'

@@ -102,8 +102,12 @@ async function placePhoto(
 }
 
 // records-repo에서 스캔 순서(created_at ASC, id ASC)로 조회한 rows를 받아 xlsx 워크북 버퍼를 만든다.
-// No는 DB id가 아니라 rows 배열 안 순번(1부터)이므로, 호출 측이 이미 스캔 순서로 정렬해 넘겨야 한다 (Q16)
-export async function buildExportWorkbook(rows: RecordRow[]): Promise<Buffer> {
+// No는 DB id가 아니라 기간 안 스캔 순번이므로, 호출 측이 이미 스캔 순서로 정렬해 넘겨야 한다 (Q16).
+// 500건 단위로 나눈 두 번째 이후 파일은 startNo(예: 501)부터 순번을 이어 매긴다
+export async function buildExportWorkbook(
+  rows: RecordRow[],
+  startNo = 1
+): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('기록')
   worksheet.columns = COLUMNS
@@ -131,7 +135,7 @@ export async function buildExportWorkbook(rows: RecordRow[]): Promise<Buffer> {
     const rowNumber = i + 2 // 1행은 헤더
 
     worksheet.addRow({
-      no: i + 1,
+      no: startNo + i,
       created_at: formatKstDisplay(record.created_at),
       product_no: record.product_no,
       lot: record.lot,

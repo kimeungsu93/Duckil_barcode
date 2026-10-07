@@ -205,17 +205,25 @@ export function isRawKeyConflict(error: unknown): boolean {
   )
 }
 
-// Excel 내보내기용 전체 목록: 스캔 순서(created_at ASC, id ASC)로 반환한다 (Q16)
-export function listRecordsForExport(from?: string, to?: string): RecordRow[] {
+// Excel 내보내기용 목록: 스캔 순서(created_at ASC, id ASC)로 반환한다 (Q16).
+// page를 주면 그 구간(파일 1개 분량)만 반환한다. 새 기록은 정렬상 뒤에 붙으므로 앞 구간은 밀리지 않는다
+export function listRecordsForExport(
+  from?: string,
+  to?: string,
+  page?: { limit: number; offset: number }
+): RecordRow[] {
   const db = getDb()
   const { conditions, params } = buildRangeClause(from, to)
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+  const paging = page ? 'LIMIT @limit OFFSET @offset' : ''
   return db
-    .prepare(`SELECT * FROM records ${where} ORDER BY created_at ASC, id ASC`)
-    .all(params) as RecordRow[]
+    .prepare(
+      `SELECT * FROM records ${where} ORDER BY created_at ASC, id ASC ${paging}`
+    )
+    .all(page ? { ...params, ...page } : params) as RecordRow[]
 }
 
-// 기간 내 건수. 내보내기 전 경고 임계치(200)·하드 상한(500) 확인에 사용 (ROADMAP Q3·Q6)
+// 기간 내 건수. 내보내기 전 경고 임계치·파일 분할 수·전체 상한 확인에 사용 (ROADMAP Q3·Q6)
 export function countRecordsInRange(from?: string, to?: string): number {
   const db = getDb()
   const { conditions, params } = buildRangeClause(from, to)

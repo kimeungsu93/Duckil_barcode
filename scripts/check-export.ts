@@ -4,7 +4,8 @@
 // PNG 등 비JPEG나 SOF를 못 찾는 JPEG는 기본 상자 크기(240x90) 그대로인지만 확인한다.
 //
 // 실행 예:
-//   node --import ./scripts/register-alias.mjs scripts/check-export.ts <xlsx-path> [--rows=N] [--images=N]
+//   node --import ./scripts/register-alias.mjs scripts/check-export.ts <xlsx-path> [--rows=N] [--images=N] [--start=N]
+//   (--start: 500건 단위로 나눈 두 번째 이후 파일의 첫 No. 예: 2번째 파일은 --start=501)
 import { readFile } from 'node:fs/promises'
 import ExcelJS from 'exceljs'
 import { readJpegSize } from '@/lib/jpeg-size'
@@ -34,7 +35,7 @@ async function main() {
   const [, , filePath, ...rest] = process.argv
   if (!filePath) {
     throw new Error(
-      '사용법: check-export.ts <xlsx-path> [--rows=N] [--images=N]'
+      '사용법: check-export.ts <xlsx-path> [--rows=N] [--images=N] [--start=N]'
     )
   }
   const flags = parseFlags(rest)
@@ -42,6 +43,7 @@ async function main() {
   const expectImages = flags.has('images')
     ? Number(flags.get('images'))
     : undefined
+  const startNo = flags.has('start') ? Number(flags.get('start')) : 1
 
   const buffer = await readFile(filePath)
   const workbook = new ExcelJS.Workbook()
@@ -66,15 +68,21 @@ async function main() {
     )
   }
 
-  // No 순번: 2행부터 1,2,3...이 순서대로 매겨졌는지 (F5-6)
+  // No 순번: 2행부터 startNo, startNo+1...이 순서대로 매겨졌는지 (F5-6)
   let noOk = true
   const noValues: unknown[] = []
   for (let i = 0; i < dataRowCount; i++) {
     const value = worksheet.getCell(`A${i + 2}`).value
     noValues.push(value)
-    if (value !== i + 1) noOk = false
+    if (value !== startNo + i) noOk = false
   }
-  check('No 순번(1부터 이어짐)', noOk, JSON.stringify(noValues))
+  check(
+    `No 순번(${startNo}부터 이어짐)`,
+    noOk,
+    noValues.length > 10
+      ? `${JSON.stringify(noValues.slice(0, 3))} ... ${JSON.stringify(noValues.slice(-3))}`
+      : JSON.stringify(noValues)
+  )
 
   // 헤더 행 스타일: 굵게·배경색·테두리·가운데 정렬 (8개 컬럼 전부, F5-7)
   let headerStyleOk = true

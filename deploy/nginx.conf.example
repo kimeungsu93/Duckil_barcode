@@ -53,7 +53,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Excel 내보내기는 사진이 많으면 수십 초 걸릴 수 있다 (PRD §8, 200건 경고 / 500건 상한)
+    # Excel 내보내기는 사진이 많으면 수십 초 걸릴 수 있다 (PRD §8, 200건 경고 / 파일 1개당 500건 분할)
     location /api/export {
         proxy_pass http://duckil_barcode;
         proxy_http_version 1.1;

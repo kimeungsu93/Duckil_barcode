@@ -25,6 +25,12 @@ export const exportQuerySchema = z
   .object({
     from: dateStringSchema,
     to: dateStringSchema,
+    // 500건 단위로 나눈 파일 중 몇 번째인지 (1부터, 생략 시 1)
+    part: z.coerce
+      .number({ error: '파일 번호는 숫자여야 합니다' })
+      .int({ error: '파일 번호는 정수여야 합니다' })
+      .min(1, { error: '파일 번호는 1 이상이어야 합니다' })
+      .optional(),
   })
   .refine(data => data.from <= data.to, {
     error: '시작일은 종료일보다 늦을 수 없습니다',
