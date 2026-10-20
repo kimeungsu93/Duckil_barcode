@@ -22,7 +22,8 @@ const PHOTO_COLUMN_WIDTH = (PHOTO_BOX_WIDTH_PX - 5) / 7 + 3
 // 사진이 들어가는 행의 높이(pt): px × 0.75 (90px → 67.5pt) 이상
 const PHOTO_ROW_HEIGHT_PT = PHOTO_BOX_HEIGHT_PX * 0.75
 
-// 헤더 열 정의 (PRD F5의 9개 컬럼. Phase 7 Task 026에서 9번째 '점등 사진' 추가)
+// 헤더 열 정의 (PRD F5의 9개 컬럼. Phase 7 Task 026에서 9번째 '점등 사진' 추가).
+// 촬영 방식 변경으로 barcode_photo·product_photo 헤더를 '제품 좌측 사진'·'제품 우측 사진'으로 바꿨다
 const COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: 'No', key: 'no', width: 6 },
   { header: '일시', key: 'created_at', width: 18 },
@@ -30,8 +31,8 @@ const COLUMNS: Partial<ExcelJS.Column>[] = [
   { header: 'Lot', key: 'lot', width: 14 },
   { header: 'QR 원문', key: 'raw_text', width: 24 },
   { header: '메모', key: 'memo', width: 20 },
-  { header: '바코드 사진', key: 'barcode_photo', width: PHOTO_COLUMN_WIDTH },
-  { header: '제품 사진', key: 'product_photo', width: PHOTO_COLUMN_WIDTH },
+  { header: '제품 좌측 사진', key: 'barcode_photo', width: PHOTO_COLUMN_WIDTH },
+  { header: '제품 우측 사진', key: 'product_photo', width: PHOTO_COLUMN_WIDTH },
   { header: '점등 사진', key: 'lighting_photo', width: PHOTO_COLUMN_WIDTH },
 ]
 

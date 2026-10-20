@@ -124,6 +124,14 @@ async function main() {
     JSON.stringify(noValues)
   )
 
+  // 7·8번째 사진 헤더는 촬영 방식 변경으로 제품 좌측·우측 명칭을 쓴다
+  check(
+    '7·8번째 헤더 = 제품 좌측 사진·제품 우측 사진',
+    worksheet.getCell(1, 7).value === '제품 좌측 사진' &&
+      worksheet.getCell(1, 8).value === '제품 우측 사진',
+    `${String(worksheet.getCell(1, 7).value)}, ${String(worksheet.getCell(1, 8).value)}`
+  )
+
   // 헤더 9개 컬럼, 9번째는 점등 사진 (Phase 7 Task 026)
   check(
     '9번째 헤더 = 점등 사진',
